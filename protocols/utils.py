@@ -181,7 +181,15 @@ def filter_multiple_phenos_all_drugs(group):
     return with_mic.iloc[0:1] if not with_mic.empty else prioritized_group.iloc[0:1]
 
 
-def piezo_predict(iso_df, catalogue_file, drug, U_to_R=False, U_to_S=False, Print=True):
+def piezo_predict(
+    iso_df,
+    catalogue_file,
+    drug,
+    U_to_R=False,
+    U_to_S=False,
+    Print=False,
+    log_false_predictions=False,
+):
     """
     Predicts drug resistance based on genetic mutations using a resistance catalogue.
 
@@ -192,6 +200,7 @@ def piezo_predict(iso_df, catalogue_file, drug, U_to_R=False, U_to_S=False, Prin
     U_to_R (bool, optional): If True, treat 'U' predictions as 'R'. Defaults to False.
     U_to_S (bool, optional): If True, treat 'U' predictions as 'S'. Defaults to False.
     Print (bool, optional): If True, prints the confusion matrix, coverage, sensitivity, and specificity. Defaults to True.
+    log_false_predictions (bool, optional): If True, also return the ids for False Positive and Negative samples for discrepany analysis
 
     Returns:
     list: Confusion matrix, isolate coverage, sensitivity, specificity, and false negative IDs.
@@ -205,10 +214,13 @@ def piezo_predict(iso_df, catalogue_file, drug, U_to_R=False, U_to_S=False, Prin
     predictions = []
 
     for id_ in ids:
+
         # For each sample
         df = iso_df[iso_df["UNIQUEID"] == id_]
+
         # Predict phenotypes for each mutation via lookup
         mut_predictions = []
+
         for var in df["MUTATION"]:
             if pd.isna(var):
                 predict = "S"
@@ -237,22 +249,30 @@ def piezo_predict(iso_df, catalogue_file, drug, U_to_R=False, U_to_S=False, Prin
             predictions.append("S")
 
     # Log false negative samples
-    FN_id = [
-        id_
-        for id_, label, pred in zip(ids, labels, predictions)
-        if pred == "S" and label == "R"
-    ]
+    if log_false_predictions:
+        FN_id = [
+            id_
+            for id_, label, pred in zip(ids, labels, predictions)
+            if pred == "S" and label == "R"
+        ]
 
-    FP_id = [
-        id_
-        for id_, label, pred in zip(ids, labels, predictions)
-        if pred == "R" and label == "S"
-    ]
+        FP_id = [
+            id_
+            for id_, label, pred in zip(ids, labels, predictions)
+            if pred == "R" and label == "S"
+        ]
 
     # Generate confusion matrix for performance analysis
     cm = confusion_matrix(labels, predictions, classes=["R", "S", "U"])
 
-    if "U" not in predictions:
+    TP = cm[0, 0]
+    FN = cm[0, 1]
+    TN = cm[1, 1]
+    FP = cm[1, 0]
+    UP = cm[0, 2]
+    UN = cm[1, 2]
+
+    if UP == 0 and UN == 0:
         cm = cm[:2, :2]
     else:
         cm = cm[:2, :]
@@ -260,17 +280,33 @@ def piezo_predict(iso_df, catalogue_file, drug, U_to_R=False, U_to_S=False, Prin
     if Print:
         print(cm)
 
-    # Calculate performance metrics
-    sensitivity = cm[0, 0] / (cm[0, 0] + cm[0, 1])
-    specificity = cm[1, 1] / (cm[1, 1] + cm[1, 0])
-    isolate_cov = (len(labels) - predictions.count("U")) / len(labels)
+    # Calculate ternary performance metrics
+    sensitivity = TP / (TP + FN)
+    specificity = TN / (TN + FP)
+    coverage = (len(labels) - predictions.count("U")) / len(labels)
+
+    # Calculate binary performance metrics
+    sensitivity2 = TP / (TP + FN + UP)
+    specificity2 = (TN + UN) / (TN + UN + FP)
 
     if Print:
-        print("Catalogue coverage of isolates:", isolate_cov)
+        print("Catalogue coverage of isolates:", coverage)
         print("Sensitivity:", sensitivity)
         print("Specificity:", specificity)
 
-    return [cm, isolate_cov, sensitivity, specificity, FN_id, FP_id]
+    if log_false_predictions:
+        return [
+            cm,
+            coverage,
+            sensitivity,
+            specificity,
+            sensitivity2,
+            specificity2,
+            FN_id,
+            FP_id,
+        ]
+    else:
+        return [cm, coverage, sensitivity, specificity, sensitivity2, specificity2]
 
 
 def confusion_matrix(labels, predictions, classes):
@@ -754,12 +790,6 @@ def flatten_grid_results(grid):
                 "COVERAGE": metrics.get("cov"),
                 "SENSITIVITY2": metrics.get("sens2"),
                 "SPECIFICITY2": metrics.get("spec2"),
-                "TP": metrics.get("TP"),
-                "FP": metrics.get("FP"),
-                "TN": metrics.get("TN"),
-                "FN": metrics.get("FN"),
-                "UP": metrics.get("UP"),
-                "UN": metrics.get("UN"),
             }
             for (drug, background_rate, p_value), metrics in grid.items()
         ]
@@ -1228,9 +1258,9 @@ def plot_perf_heatmaps(performance_df):
 
     metrics = ["Sensitivity", "Specificity", "Coverage"]
     colormaps = [red_gray_cmap, blue_gray_cmap, green_gray_cmap]
-
+    colormaps = ["Reds", "Blues", "Greens"]
     for drug in performance_df["Drug"].unique():
-        fig, axes = plt.subplots(1, 3, figsize=(6, 2))
+        fig, axes = plt.subplots(1, 3, figsize=(7, 2))
 
         for i, (metric, cmap) in enumerate(zip(metrics, colormaps)):
             subset_df = performance_df[performance_df["Drug"] == drug].pivot(
@@ -1248,12 +1278,15 @@ def plot_perf_heatmaps(performance_df):
                 ax=axes[i],
                 vmin=0,
                 vmax=90,
+                square=True,
                 cbar=False,
             )
 
-            ax.set_title(f"{metric} - {drug}", fontsize=6)
-            ax.set_xlabel("Test min FRS", fontsize=6)
-            ax.set_ylabel("Build min FRS", fontsize=6)
+            # ax.set_title(f"{metric} - {drug}", fontsize=6)
+            # ax.set_xlabel("Test min FRS", fontsize=6)
+            ax.set_xlabel("")
+            ax.set_ylabel("")
+            # ax.set_ylabel("Build min FRS", fontsize=6)
             ax.invert_yaxis()
 
             # Force normal notation on axis tick labels
@@ -1275,7 +1308,7 @@ def plot_perf_heatmaps(performance_df):
                     )
                 )
             )
-        plt.savefig(f"figs/frs/{drug}.pdf")
+        plt.savefig(f"figs/frs/{drug}.pdf", bbox_inches="tight")
         plt.tight_layout()
         plt.show()
 
@@ -1457,7 +1490,7 @@ def plot_frs_vs_mic(df_mic, color_map={}, figpath=None, min_n=0):
         plt.show()
 
 
-def plot_pheno_counts(phenotypes, title, savefig):
+def plot_pheno_counts(phenotypes, title, who_drugs, savefig):
     # Compute the count for each (DRUG, PHENOTYPE)
     barplot = (
         phenotypes.groupby(["DRUG", "PHENOTYPE"])["UNIQUEID"]
@@ -1474,24 +1507,28 @@ def plot_pheno_counts(phenotypes, title, savefig):
 
     # Create the bar plot
     plt.figure(figsize=(6.69, 3.5))
-    sns.barplot(
+    axis = sns.barplot(
         data=barplot,
         x="DRUG",
         y="count",
         hue="PHENOTYPE",
-        hue_order=["S", "R", "U"],
-        order=plot_order,
+        hue_order=["S", "R"],
+        order=who_drugs,
         dodge=True,
-        palette="muted",
+        palette=["#034e7b", "#990000"],
         alpha=0.9,
     )
 
+    axis.set_ylabel("")
+    axis.set_xlabel("")
+    # axis.set_ylim([0, 29000])
+
     # Customize the plot
-    plt.xticks(rotation=90, fontsize=7)
+    plt.xticks(rotation=0, fontsize=7)
     plt.yticks(fontsize=7)
-    plt.ylabel("# unique samples", fontsize=7)
-    plt.xlabel("Drug", fontsize=7)
-    plt.title(f"{title}: {phenotypes.UNIQUEID.nunique()} samples", fontsize=8)
+    # plt.ylabel("# unique samples", fontsize=7)
+    # plt.xlabel("Drug", fontsize=7)
+    print(f"{title}: {phenotypes.UNIQUEID.nunique()} samples")
     plt.legend(title="Phenotype")
     sns.set_theme(style="whitegrid")
 
@@ -1501,13 +1538,13 @@ def plot_pheno_counts(phenotypes, title, savefig):
             plt.text(
                 p.get_x() + p.get_width() / 2,
                 p.get_height() + 0.5,
-                f"{int(p.get_height())}",
+                f"{int(p.get_height()):,d}",
                 ha="center",
                 va="bottom",
-                fontsize=5.5,
+                fontsize=7,
             )
-
-    plt.legend(frameon=False, fontsize=7)
+    axis.legend().set_visible(False)
+    # plt.legend(frameon=False, fontsize=7)
     plt.grid(False)
     sns.despine()
     plt.tight_layout()
