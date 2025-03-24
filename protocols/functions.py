@@ -15,7 +15,7 @@ def prep_phenotypes(
 
     # streptomycin has the wrong drug code in the phenotypes table
     if drug == "STM":
-        phenotypes.replace({"DRUG": {"STR": "STM"}}, inplace=True)        
+        phenotypes.replace({"DRUG": {"STR": "STM"}}, inplace=True)
 
     assert version in ["v1.0", "v2.0", "v3.0"]
 
@@ -68,7 +68,7 @@ def prep_phenotypes(
     return phenotypes
 
 
-def prep_mutations(path, genes, version="v3.1.0", mut_path, var_path, train=True):
+def prep_mutations(path, genes, mut_path, var_path, version="v3.1.0", train=True):
 
     # Uses most up to date mutations table, as this should contain all genomes from previous versions
     mut_dir = f"{path}{'_'.join(genes)}_MUTATIONS.csv"
