@@ -1242,7 +1242,7 @@ def plot_cat_comp_proportions(
         plt.show()
 
 
-def plot_perf_heatmaps(performance_df):
+def plot_perf_heatmaps(performance_df, draw_axes=True):
     """Iterates through a single performance dataframe and plots one drug at a time."""
 
     # Define custom colormaps
@@ -1289,26 +1289,32 @@ def plot_perf_heatmaps(performance_df):
             # ax.set_ylabel("Build min FRS", fontsize=6)
             ax.invert_yaxis()
 
-            # Force normal notation on axis tick labels
-            ax.xaxis.set_major_formatter(
-                ticker.FuncFormatter(
-                    lambda x, _: (
-                        f"{subset_df.columns[int(x)]:.2f}"
-                        if int(x) < len(subset_df.columns)
-                        else ""
+            if draw_axes:
+                # Force normal notation on axis tick labels
+                ax.xaxis.set_major_formatter(
+                    ticker.FuncFormatter(
+                        lambda x, _: (
+                            f"{subset_df.columns[int(x)]:.2f}"
+                            if int(x) < len(subset_df.columns)
+                            else ""
+                        )
                     )
                 )
-            )
-            ax.yaxis.set_major_formatter(
-                ticker.FuncFormatter(
-                    lambda y, _: (
-                        f"{subset_df.index[int(y)]:.2f}"
-                        if int(y) < len(subset_df.index)
-                        else ""
+                ax.yaxis.set_major_formatter(
+                    ticker.FuncFormatter(
+                        lambda y, _: (
+                            f"{subset_df.index[int(y)]:.2f}"
+                            if int(y) < len(subset_df.index)
+                            else ""
+                        )
                     )
                 )
-            )
-        plt.savefig(f"figs/frs/{drug}.pdf", bbox_inches="tight")
+            else:
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.set_xticklabels([])
+
+        plt.savefig(f"figs/frs/{drug}.pdf", bbox_inches="tight", transparent=True)
         plt.tight_layout()
         plt.show()
 
