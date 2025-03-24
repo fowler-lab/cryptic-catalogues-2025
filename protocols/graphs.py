@@ -7,6 +7,13 @@ plt.rcParams["font.size"] = 7
 plt.rcParams["figure.figsize"] = (6.69, 5.02)
 
 
+colours = {
+    "whov1": ("#fdbb84", "#a6bddb", "#99d8c9"),
+    "whov2": ("#ef6548", "#3690c0", "#41ae76"),
+    "cat1": ("#990000", "#034e7b", "#005824"),
+}
+
+
 def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
 
     df_who1 = df[df.catalogue == "WHOv1"]
@@ -24,8 +31,8 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
         who1_results["sensitivity"],
         0.2,
         label=who1_results["sensitivity"],
-        alpha=0.5,
-        color="#cccccc",
+        color="none",
+        edgecolor=colours["whov1"][0],
     )
     subset = who1_results[["sensitivity"]]
     subset.columns = ["x"]
@@ -38,7 +45,7 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="right",
                 va="center",
-                color="#cccccc",
+                color=colours["whov1"][0],
                 fontweight="light",
             )
         iy += 1
@@ -48,8 +55,8 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
         df_who1["SENSITIVITY2"] * 100,
         0.2,
         label=df_who1["SENSITIVITY2"],
-        alpha=0.5,
-        color="#ef6548",
+        alpha=0.8,
+        color=colours["whov1"][0],
     )
     subset = df_who1[["SENSITIVITY2"]] * 100
     subset.columns = ["x"]
@@ -62,7 +69,7 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="right",
                 va="center",
-                color="#ef6548",
+                color=colours["whov1"][0],
                 fontweight="light",
             )
         iy += 1
@@ -72,8 +79,9 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
         who2_results["sensitivity"],
         0.2,
         label=who2_results["sensitivity"],
-        alpha=0.5,
-        color="#aaaaaa",
+        alpha=1,
+        edgecolor=colours["whov2"][0],
+        color="none",
     )
     subset = who2_results[["sensitivity"]]
     subset.columns = ["x"]
@@ -86,7 +94,7 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="right",
                 va="center",
-                color="#aaaaaa",
+                color=colours["whov2"][0],
                 fontweight="light",
             )
         iy += 1
@@ -96,8 +104,8 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
         df_who2["SENSITIVITY2"] * 100,
         0.2,
         label=df_who2["SENSITIVITY2"],
-        alpha=0.5,
-        color="#990000",
+        alpha=0.8,
+        color=colours["whov2"][0],
     )
     subset = df_who2[["SENSITIVITY2"]] * 100
     subset.columns = ["x"]
@@ -110,7 +118,7 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="right",
                 va="center",
-                color="#990000",
+                color=colours["whov2"][0],
                 fontweight="light",
             )
         iy += 1
@@ -120,8 +128,8 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
         who1_results["specificity"],
         0.2,
         label=who1_results["specificity"],
-        alpha=0.5,
-        color="#cccccc",
+        edgecolor=colours["whov1"][1],
+        color="none",
     )
     axis2.set_yticks(y, who1_results["drug"])
     subset = who1_results[["specificity"]]
@@ -135,7 +143,7 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="left",
                 va="center",
-                color="#cccccc",
+                color=colours["whov1"][1],
                 fontweight="light",
             )
         iy += 1
@@ -145,8 +153,8 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
         df_who1["SPECIFICITY2"] * 100,
         0.2,
         label=df_who1["SPECIFICITY2"],
-        alpha=0.5,
-        color="#74a9cf",
+        alpha=0.8,
+        color=colours["whov1"][1],
     )
     subset = df_who1[["SPECIFICITY2"]] * 100
     subset.columns = ["x"]
@@ -159,7 +167,7 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="left",
                 va="center",
-                color="#74a9cf",
+                color=colours["whov1"][1],
                 fontweight="light",
             )
         iy += 1
@@ -169,8 +177,8 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
         who2_results["specificity"],
         0.2,
         label=who2_results["specificity"],
-        alpha=0.5,
-        color="#aaaaaa",
+        edgecolor=colours["whov2"][1],
+        color="none",
     )
     subset = who2_results[["specificity"]]
     subset.columns = ["x"]
@@ -183,7 +191,7 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="left",
                 va="center",
-                color="#aaaaaa",
+                color=colours["whov2"][1],
                 fontweight="light",
             )
         iy += 1
@@ -193,8 +201,8 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
         df_who2["SPECIFICITY2"] * 100,
         0.2,
         label=df_who2["SPECIFICITY2"],
-        alpha=0.5,
-        color="#034e7b",
+        alpha=0.8,
+        color=colours["whov2"][1],
     )
     subset = df_who2[["SPECIFICITY2"]] * 100
     subset.columns = ["x"]
@@ -207,7 +215,7 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="left",
                 va="center",
-                color="#034e7b",
+                color=colours["whov2"][1],
                 fontweight="light",
             )
         iy += 1
@@ -254,8 +262,8 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
         df_who1["SENSITIVITY"] * 100,
         0.2,
         label=df_who1["SENSITIVITY"],
-        alpha=0.2,
-        color="#990000",
+        alpha=0.8,
+        color=colours["whov1"][0],
     )
     subset = df_who1[["SENSITIVITY"]] * 100
     subset.columns = ["x"]
@@ -268,7 +276,7 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="right",
                 va="center",
-                color="#ef6548",
+                color=colours["whov1"][0],
                 fontweight="light",
             )
         iy += 1
@@ -278,8 +286,8 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
         df_who2["SENSITIVITY"] * 100,
         0.2,
         label=df_who2["SENSITIVITY"],
-        alpha=0.6,
-        color="#990000",
+        alpha=0.8,
+        color=colours["whov2"][0],
     )
     subset = df_who2[["SENSITIVITY"]] * 100
     subset.columns = ["x"]
@@ -292,8 +300,7 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="right",
                 va="center",
-                alpha=0.6,
-                color="#990000",
+                color=colours["whov2"][0],
                 fontweight="light",
             )
         iy += 1
@@ -303,8 +310,8 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
         df_cat1["SENSITIVITY"] * 100,
         0.2,
         label=df_cat1["SENSITIVITY"],
-        alpha=1,
-        color="#990000",
+        alpha=0.8,
+        color=colours["cat1"][0],
     )
     subset = df_cat1[["SENSITIVITY"]] * 100
     subset.columns = ["x"]
@@ -317,7 +324,7 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="right",
                 va="center",
-                color="#990000",
+                color=colours["cat1"][0],
                 fontweight="light",
             )
         iy += 1
@@ -327,8 +334,8 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
         df_who1["SPECIFICITY"] * 100,
         0.2,
         label=df_who1["SPECIFICITY"],
-        alpha=0.5,
-        color="#74a9cf",
+        alpha=0.8,
+        color=colours["whov1"][1],
     )
     subset = df_who1[["SPECIFICITY"]] * 100
     subset.columns = ["x"]
@@ -341,7 +348,7 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="left",
                 va="center",
-                color="#74a9cf",
+                color=colours["whov1"][1],
                 fontweight="light",
             )
         iy += 1
@@ -351,8 +358,8 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
         df_who2["SPECIFICITY"] * 100,
         0.2,
         label=df_who2["SPECIFICITY"],
-        alpha=0.5,
-        color="#034e7b",
+        alpha=0.8,
+        color=colours["whov2"][1],
     )
     subset = df_who2[["SPECIFICITY"]] * 100
     subset.columns = ["x"]
@@ -365,7 +372,7 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="left",
                 va="center",
-                color="#034e7b",
+                color=colours["whov2"][1],
                 fontweight="light",
             )
         iy += 1
@@ -375,8 +382,8 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
         df_who2["SPECIFICITY"] * 100,
         0.2,
         label=df_who2["SPECIFICITY"],
-        alpha=1,
-        color="#034e7b",
+        alpha=0.8,
+        color=colours["cat1"][1],
     )
     subset = df_who2[["SPECIFICITY"]] * 100
     subset.columns = ["x"]
@@ -389,7 +396,7 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="left",
                 va="center",
-                color="#034e7b",
+                color=colours["cat1"][1],
                 fontweight="light",
             )
         iy += 1
@@ -433,8 +440,8 @@ def plot_bar_catomatic_coverage(df, outfile, who_drugs, show_graph=False):
         df_who1["COVERAGE"] * 100,
         0.2,
         label=df_who1["COVERAGE"],
-        alpha=0.33,
-        color="#333333",
+        alpha=0.8,
+        color=colours["whov1"][2],
     )
     subset = df_who1[["COVERAGE"]] * 100
     subset.columns = ["x"]
@@ -447,8 +454,7 @@ def plot_bar_catomatic_coverage(df, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="right",
                 va="center",
-                color="#333333",
-                alpha=0.33,
+                color=colours["whov1"][2],
                 fontweight="light",
             )
         iy += 1
@@ -458,8 +464,8 @@ def plot_bar_catomatic_coverage(df, outfile, who_drugs, show_graph=False):
         df_who2["COVERAGE"] * 100,
         0.2,
         label=df_who2["COVERAGE"],
-        alpha=0.66,
-        color="#333333",
+        alpha=0.8,
+        color=colours["whov2"][2],
     )
     subset = df_who2[["COVERAGE"]] * 100
     subset.columns = ["x"]
@@ -472,8 +478,7 @@ def plot_bar_catomatic_coverage(df, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="right",
                 va="center",
-                color="#333333",
-                alpha=0.66,
+                color=colours["whov2"][2],
                 fontweight="light",
             )
         iy += 1
@@ -483,8 +488,8 @@ def plot_bar_catomatic_coverage(df, outfile, who_drugs, show_graph=False):
         df_cat1["COVERAGE"] * 100,
         0.2,
         label=df_cat1["COVERAGE"],
-        alpha=1,
-        color="#333333",
+        alpha=0.8,
+        color=colours["cat1"][2],
     )
     subset = df_cat1[["COVERAGE"]] * 100
     subset.columns = ["x"]
@@ -497,8 +502,7 @@ def plot_bar_catomatic_coverage(df, outfile, who_drugs, show_graph=False):
                 "%.1f" % row.x,
                 ha="right",
                 va="center",
-                color="#333333",
-                alpha=1,
+                color=colours["cat1"][2],
                 fontweight="light",
             )
         iy += 1
