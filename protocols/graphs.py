@@ -245,7 +245,14 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
     plt.close()
 
 
-def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
+def plot_bar_catomatic(
+    df,
+    outfile,
+    who_drugs,
+    sensitivity="SENSITIVITY",
+    specificity="SPECIFICITY",
+    show_graph=False,
+):
 
     df_who1 = df[df.catalogue == "WHOv1"]
     df_who2 = df[df.catalogue == "WHOv2"]
@@ -259,13 +266,13 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
 
     axis1.barh(
         y + 0.2,
-        df_who1["SENSITIVITY"] * 100,
+        df_who1[sensitivity] * 100,
         0.2,
-        label=df_who1["SENSITIVITY"],
+        label=df_who1[sensitivity],
         alpha=0.8,
         color=colours["whov1"][0],
     )
-    subset = df_who1[["SENSITIVITY"]] * 100
+    subset = df_who1[[sensitivity]] * 100
     subset.columns = ["x"]
     iy = 0
     for idx, row in subset.iterrows():
@@ -283,13 +290,13 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
 
     axis1.barh(
         y,
-        df_who2["SENSITIVITY"] * 100,
+        df_who2[sensitivity] * 100,
         0.2,
-        label=df_who2["SENSITIVITY"],
+        label=df_who2[sensitivity],
         alpha=0.8,
         color=colours["whov2"][0],
     )
-    subset = df_who2[["SENSITIVITY"]] * 100
+    subset = df_who2[[sensitivity]] * 100
     subset.columns = ["x"]
     iy = 0
     for idx, row in subset.iterrows():
@@ -307,13 +314,13 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
 
     axis1.barh(
         y - 0.2,
-        df_cat1["SENSITIVITY"] * 100,
+        df_cat1[sensitivity] * 100,
         0.2,
-        label=df_cat1["SENSITIVITY"],
+        label=df_cat1[sensitivity],
         alpha=0.8,
         color=colours["cat1"][0],
     )
-    subset = df_cat1[["SENSITIVITY"]] * 100
+    subset = df_cat1[[sensitivity]] * 100
     subset.columns = ["x"]
     iy = 0
     for idx, row in subset.iterrows():
@@ -331,13 +338,13 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
 
     axis2.barh(
         y + 0.2,
-        df_who1["SPECIFICITY"] * 100,
+        df_who1[specificity] * 100,
         0.2,
-        label=df_who1["SPECIFICITY"],
+        label=df_who1[specificity],
         alpha=0.8,
         color=colours["whov1"][1],
     )
-    subset = df_who1[["SPECIFICITY"]] * 100
+    subset = df_who1[[specificity]] * 100
     subset.columns = ["x"]
     iy = 0
     for idx, row in subset.iterrows():
@@ -355,13 +362,13 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
 
     axis2.barh(
         y,
-        df_who2["SPECIFICITY"] * 100,
+        df_who2[specificity] * 100,
         0.2,
-        label=df_who2["SPECIFICITY"],
+        label=df_who2[specificity],
         alpha=0.8,
         color=colours["whov2"][1],
     )
-    subset = df_who2[["SPECIFICITY"]] * 100
+    subset = df_who2[[specificity]] * 100
     subset.columns = ["x"]
     iy = 0
     for idx, row in subset.iterrows():
@@ -379,13 +386,13 @@ def plot_bar_catomatic(df, outfile, who_drugs, show_graph=False):
 
     axis2.barh(
         y - 0.2,
-        df_who2["SPECIFICITY"] * 100,
+        df_cat1[specificity] * 100,
         0.2,
-        label=df_who2["SPECIFICITY"],
+        label=df_cat1[specificity],
         alpha=0.8,
         color=colours["cat1"][1],
     )
-    subset = df_who2[["SPECIFICITY"]] * 100
+    subset = df_cat1[[specificity]] * 100
     subset.columns = ["x"]
     iy = 0
     for idx, row in subset.iterrows():
