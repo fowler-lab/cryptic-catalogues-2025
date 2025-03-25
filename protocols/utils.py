@@ -3,6 +3,7 @@ import json
 import pandas as pd
 from matplotlib.patches import Rectangle
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 import seaborn as sns
 from pathlib import Path
@@ -454,7 +455,7 @@ def plot_truthtables(truth_table, U_to_S=False, fontsize=10, colors=None, save=N
     axes.set_aspect("equal")  # Ensure squares remain squares
 
     if save != None:
-        plt.savefig(save, format="pdf", bbox_inches="tight")
+        plt.savefig(save, format="pdf", bbox_inches="tight", transparent=True)
 
     plt.show()
 
@@ -1276,8 +1277,8 @@ def plot_perf_heatmaps(performance_df, draw_axes=True):
                 fmt="",  # Prevent scientific notation
                 cmap=cmap,
                 ax=axes[i],
-                vmin=0,
-                vmax=90,
+                vmin=60,
+                vmax=100,
                 square=True,
                 cbar=False,
             )
@@ -1506,13 +1507,13 @@ def plot_pheno_counts(phenotypes, title, who_drugs, savefig):
     )
 
     # Compute total count per DRUG (sum of R, S, U)
-    total_counts = barplot.groupby("DRUG")["count"].sum().reset_index()
+    # total_counts = barplot.groupby("DRUG")["count"].sum().reset_index()
 
     # Order DRUGs by total count descending
-    plot_order = total_counts.sort_values("count", ascending=False)["DRUG"].tolist()
+    # plot_order = total_counts.sort_values("count", ascending=False)["DRUG"].tolist()
 
     # Create the bar plot
-    plt.figure(figsize=(6.69, 3.5))
+    plt.figure(figsize=(10, 3.2))
     axis = sns.barplot(
         data=barplot,
         x="DRUG",
@@ -1521,17 +1522,20 @@ def plot_pheno_counts(phenotypes, title, who_drugs, savefig):
         hue_order=["S", "R"],
         order=who_drugs,
         dodge=True,
-        palette=["#034e7b", "#990000"],
+        palette=["gainsboro", "dimgrey"],  # palette=["#034e7b", "#990000"],
         alpha=0.9,
     )
 
     axis.set_ylabel("")
     axis.set_xlabel("")
     # axis.set_ylim([0, 29000])
+    axis.get_yaxis().set_major_formatter(
+        matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ","))
+    )
 
     # Customize the plot
-    plt.xticks(rotation=0, fontsize=7)
-    plt.yticks(fontsize=7)
+    plt.xticks(rotation=0, fontsize=10)
+    plt.yticks(fontsize=10)
     # plt.ylabel("# unique samples", fontsize=7)
     # plt.xlabel("Drug", fontsize=7)
     print(f"{title}: {phenotypes.UNIQUEID.nunique()} samples")
@@ -1547,14 +1551,14 @@ def plot_pheno_counts(phenotypes, title, who_drugs, savefig):
                 f"{int(p.get_height()):,d}",
                 ha="center",
                 va="bottom",
-                fontsize=7,
+                fontsize=10,
             )
     axis.legend().set_visible(False)
     # plt.legend(frameon=False, fontsize=7)
     plt.grid(False)
     sns.despine()
     plt.tight_layout()
-    plt.savefig(savefig)
+    plt.savefig(savefig, transparent=True, bbox_inches="tight")
     # Show the plot
     plt.show()
 
