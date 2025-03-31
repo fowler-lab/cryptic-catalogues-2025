@@ -190,6 +190,7 @@ def piezo_predict(
     U_to_S=False,
     Print=False,
     log_false_predictions=False,
+    return_predictions=False,
 ):
     """
     Predicts drug resistance based on genetic mutations using a resistance catalogue.
@@ -306,8 +307,10 @@ def piezo_predict(
             FN_id,
             FP_id,
         ]
-    else:
+    elif not return_predictions:
         return [cm, coverage, sensitivity, specificity, sensitivity2, specificity2]
+    elif return_predictions:
+        return [ids, labels, predictions]
 
 
 def confusion_matrix(labels, predictions, classes):
