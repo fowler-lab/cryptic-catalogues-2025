@@ -1280,8 +1280,8 @@ def plot_perf_heatmaps(performance_df, draw_axes=True):
                 fmt="",  # Prevent scientific notation
                 cmap=cmap,
                 ax=axes[i],
-                vmin=60,
-                vmax=100,
+                vmin=70,
+                vmax=90,
                 square=True,
                 cbar=False,
             )
