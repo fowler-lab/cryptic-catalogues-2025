@@ -1,0 +1,26 @@
+{
+  "pncA@*=": {
+    "pred": "S",
+    "evid": { "default_rule": "True" }
+  },
+  "pncA@-*_indel": {
+    "pred": "U",
+    "evid": { "default_rule": "True" }
+  },
+  "pncA@*_indel": {
+    "pred": "U",
+    "evid": { "default_rule": "True" }
+  },
+  "pncA@-*?": {
+    "pred": "U",
+    "evid": { "default_rule": "True" }
+  },
+  "pncA@*?": {
+    "pred": "U",
+    "evid": { "default_rule": "True" }
+  },
+  "pncA@del_0.0": {
+    "pred": "U",
+    "evid": { "default_rule": "True" }
+  }
+}
