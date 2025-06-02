@@ -10,14 +10,13 @@ def prep_phenotypes(
     # import phenotypes and samples and genoms
 
     phenotypes = utils.read_data(pheno_path).reset_index()
-    genomes = utils.read_data(genomes_path).reset_index()
     samples = utils.read_data(samples_path).reset_index()
 
     # streptomycin has the wrong drug code in the phenotypes table
     if drug == "STM":
         phenotypes.replace({"DRUG": {"STR": "STM"}}, inplace=True)
 
-    assert version in ["v1.0", "v2.0", "v3.0"]
+    assert version in ["v1.0", "v2.0", "v3.0.0", "v3.3.0", "v3.4.0"]
 
     if version == "v1.0":
 
@@ -34,24 +33,24 @@ def prep_phenotypes(
         ].UNIQUEID.unique()
         phenotypes = phenotypes[phenotypes.UNIQUEID.isin(matched)]
 
-    elif version == "v3.0":
+    elif version in ["v3.0.0", "v3.3.0", "v3.4.0"]:
 
-        if validation:
-
+        if not validation:
             matched = samples[
-                (samples.in_final_tables) & (samples.dataset == "CRyPTIC-v3.0")
+                (samples.in_final_tables) & (samples.dataset == "CRyPTIC-v1.0")
             ].UNIQUEID.unique()
             phenotypes = phenotypes[phenotypes.UNIQUEID.isin(matched)]
 
         else:
 
-            matched = samples[(samples.in_final_tables)].UNIQUEID.unique()
+            matched = samples[(samples.in_final_tables)&(samples.dataset != "CRyPTIC-v1.0")].UNIQUEID.unique()
             phenotypes = phenotypes[phenotypes.UNIQUEID.isin(matched)]
 
     # filter for drug
     phenotypes = phenotypes[phenotypes.DRUG == drug]
 
     # discard low quality phenotypes
+    phenotypes = phenotypes[phenotypes.QUALITY!='LOW']
     phenotypes = phenotypes[phenotypes.PHENOTYPE.isin(["R", "S"])]
 
     # handle duplicates (keep R if R, otherwise first)
@@ -75,7 +74,6 @@ def prep_mutations(path, genes, mut_path, var_path, version="v3.1.0", train=True
     var_dir = f"{path}{'_'.join(genes)}_VARIANTS.csv"
 
     if not os.path.exists(mut_dir):
-        print("not exist")
         mutations = utils.read_data(mut_path).reset_index()
         variants = utils.read_data(var_path).reset_index()
         mutations[mutations.GENE.isin(genes)].to_csv(mut_dir)
@@ -100,36 +98,16 @@ def prep_mutations(path, genes, mut_path, var_path, version="v3.1.0", train=True
         )
         mutations = mutations[~mutations.IS_NULL]
 
-    elif version == "v3.0.0":
-
+    elif version in ["v3.0.0", "v3.1.0", "v3.3.0", "v3.4.0"]:
         variants["FRS"] = variants.apply(
             lambda row: (
                 row["MINOR_READS"] / row["COVERAGE"] if row["MINOR_READS"] > 0 else 1
             ),
             axis=1,
         )
-        mutations = pd.merge(
-            mutations,
-            variants[["UNIQUEID", "GENE", "GENE_POSITION", "FRS"]],
-            on=["UNIQUEID", "GENE", "GENE_POSITION"],
-            how="left",
-        )
-        mutations = mutations[~mutations.IS_NULL]
-        mutations["MUTATION"] = mutations.apply(
-            lambda x: f"{x['GENE']}@{x['MINOR_MUTATION'] if x['IS_MINOR'] else x['MUTATION']}",
-            axis=1,
-        )
+        if 'FRS' in mutations.columns:
+            mutations = mutations.drop(columns=['FRS'])
 
-    elif version == "v3.1.0":
-
-        # recalcaulte FRS from variants table to be 100% sure
-        variants["FRS"] = variants.apply(
-            lambda row: (
-                row["MINOR_READS"] / row["COVERAGE"] if row["MINOR_READS"] > 0 else 1
-            ),
-            axis=1,
-        )
-        mutations = mutations.drop(columns=["FRS"])
         mutations = pd.merge(
             mutations,
             variants[["UNIQUEID", "GENE", "GENE_POSITION", "FRS"]],
@@ -152,11 +130,15 @@ def prep_mutations(path, genes, mut_path, var_path, version="v3.1.0", train=True
         # if validating, would keep synonymous mutations
         mutations = mutations[~mutations.IS_SYNONYMOUS]
 
+    #filter our remaining Z's
+    mutations['aa'] = [i[-1] for i in mutations.MUTATION.values]
+    mutations = mutations[~mutations.aa.isin(['Z','z'])]
+
     # drop duplicate entries
     mutations = mutations.drop_duplicates(["UNIQUEID", "MUTATION", "FRS"], keep="first")
 
     # filter relevant columns for catomatic and rename id column
-    mutations = mutations[["UNIQUEID", "MUTATION", "FRS"]].rename(
+    mutations = mutations[["UNIQUEID", "MUTATION", "FRS", "IS_MINOR", 'MINOR_MUTATION', 'IS_NULL']].rename(
         columns={"ENA_RUN": "UNIQUEID"}
     )
     # mutations.set_index("UNIQUEID", inplace=True)

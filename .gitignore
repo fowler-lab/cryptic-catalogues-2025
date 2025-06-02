@@ -7,7 +7,9 @@
 /catomatic
 /data/*
 !/data/wildcards/
+!/data/13073*
 !/data/mutations-v3.1.0
+!data/drug_to_genes.json
 *pyc
 *~
 .DS_Store

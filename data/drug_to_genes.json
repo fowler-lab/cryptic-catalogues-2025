@@ -1,0 +1,66 @@
+{
+  "AMI": {
+    "genes": ["eis", "rrs"],
+    "phylogenetic": []
+  },
+  "BDQ": {
+    "genes": ["Rv0678", "pepQ", "atpE"],
+    "phylogenetic": []
+  },
+  "CAP": {
+    "genes": ["rrs", "tlyA"],
+    "phylogenetic": []
+  },
+  "CIP": {
+    "genes": ["gyrA"],
+    "phylogenetic": []
+  },
+  "CFZ": {
+    "genes": ["Rv0678", "pepQ"],
+    "phylogenetic": []
+  },
+  "DLM": {
+    "genes": ["ddn", "dprE1"],
+    "phylogenetic": []
+  },
+  "EMB": {
+    "genes": ["embA", "embB"],
+    "phylogenetic": []
+  },
+  "ETH": {
+    "genes": ["ethA", "fabG1", "inhA"],
+    "phylogenetic": []
+  },
+  "INH": {
+    "genes": ["katG", "inhA", "ahpC", "fabG1"],
+    "phylogenetic": []
+  },
+  "KAN": {
+    "genes": ["eis", "rrs"],
+    "phylogenetic": []
+  },
+  "LEV": {
+    "genes": ["gyrA", "gyrB"],
+    "phylogenetic": ["gyrA@S95T", "gyrA@E21Q", "gyrA@G668D", "gyrB@M291I"]
+  },
+  "LZD": {
+    "genes": ["rplC"],
+    "phylogenetic": []
+  },
+  "MXF": {
+    "genes": ["gyrA", "gyrB"],
+    "phylogenetic": ["gyrA@S95T", "gyrA@E21Q", "gyrA@G668D", "gyrB@M291I"]
+  },
+  "PZA": {
+    "genes": ["pncA"],
+    "phylogenetic": []
+  },
+  "RIF": {
+    "genes": ["rpoB"],
+    "phylogenetic": []
+  },
+  "STM": {
+    "genes": ["gid", "rpsL", "rrs"],
+    "phylogenetic": []
+  }
+}

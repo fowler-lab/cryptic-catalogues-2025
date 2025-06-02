@@ -1,4 +1,5 @@
 import piezo
+import os
 import json
 import pandas as pd
 from matplotlib.patches import Rectangle
@@ -11,13 +12,19 @@ import matplotlib.colors as mcolors
 from matplotlib import cm
 import matplotlib.ticker as ticker
 import warnings
-
+import tempfile
+import gumpy
 warnings.simplefilter(action="ignore", category=FutureWarning)
 from upsetplot import UpSet
 from upsetplot import from_indicators
 import matplotlib.patches as patches
 from matplotlib.lines import Line2D
 from scipy.stats import norm
+import multiprocessing as mp
+from joblib import Memory
+from functools import partial
+
+
 
 
 # Function to extract numeric values from MIC strings
@@ -201,11 +208,11 @@ def piezo_predict(
     drug (str): The drug for which resistance predictions are to be made.
     U_to_R (bool, optional): If True, treat 'U' predictions as 'R'. Defaults to False.
     U_to_S (bool, optional): If True, treat 'U' predictions as 'S'. Defaults to False.
-    Print (bool, optional): If True, prints the confusion matrix, coverage, sensitivity, and specificity. Defaults to True.
+    Print (bool, optional): If True, prints the confusion matrix, DPR, sensitivity, and specificity. Defaults to True.
     log_false_predictions (bool, optional): If True, also return the ids for False Positive and Negative samples for discrepany analysis
 
     Returns:
-    list: Confusion matrix, isolate coverage, sensitivity, specificity, and false negative IDs.
+    list: Confusion matrix, isolate DPR, sensitivity, specificity, and false negative IDs.
     """
     # Load and parse the catalogue with piezo
     catalogue = piezo.ResistanceCatalogue(catalogue_file)
@@ -274,32 +281,27 @@ def piezo_predict(
     UP = cm[0, 2]
     UN = cm[1, 2]
 
-    if UP == 0 and UN == 0:
-        cm = cm[:2, :2]
-    else:
-        cm = cm[:2, :]
-
     if Print:
         print(cm)
 
     # Calculate ternary performance metrics
-    sensitivity = TP / (TP + FN)
+    sensitivity = TP / (TP + FN) if (TP + FN) != 0 else 0
     specificity = TN / (TN + FP)
-    coverage = (len(labels) - predictions.count("U")) / len(labels)
+    dpr = (len(labels) - predictions.count("U")) / len(labels)
 
     # Calculate binary performance metrics
-    sensitivity2 = TP / (TP + FN + UP)
+    sensitivity2 = TP / (TP + FN + UN)
     specificity2 = (TN + UN) / (TN + UN + FP)
 
     if Print:
-        print("Catalogue coverage of isolates:", coverage)
+        print("Catalogue coverage of isolates:", dpr)
         print("Sensitivity:", sensitivity)
         print("Specificity:", specificity)
 
     if log_false_predictions:
         return [
             cm,
-            coverage,
+            dpr,
             sensitivity,
             specificity,
             sensitivity2,
@@ -308,7 +310,7 @@ def piezo_predict(
             FP_id,
         ]
     elif not return_predictions:
-        return [cm, coverage, sensitivity, specificity, sensitivity2, specificity2]
+        return [cm, dpr, sensitivity, specificity, sensitivity2, specificity2]
     elif return_predictions:
         return [ids, labels, predictions]
 
@@ -469,15 +471,150 @@ def str_to_dict(val):
     return val  # Keep as is (e.g., NaN values)
 
 
-def expand_catalogue_pair(cat1, cat2, drugs, model, cat_names):
+
+# Globals to be initialized in each process
+global_reference = None
+global_ref_genes = None
+global_genome_indices = None
+
+def initializer(genome_path, genome_indices_df):
+    global global_reference, global_ref_genes, global_genome_indices
+    global_reference = gumpy.Genome(genome_path)
+    ref_gene_dict = list(global_reference.genes)
+    global_ref_genes = {gene: global_reference.build_gene(gene) for gene in ref_gene_dict}
+    global_genome_indices = genome_indices_df
+
+
+def get_normalized_garc(gene_name: str, pos: int, ref: str, alt: str):
+    vcf_str = (
+        "##fileformat=VCFv4.2\n"
+        "##source=garcattempt\n"
+        "##contig=<ID=NC_000962.3>\n"
+        "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsample\n"
+        f"NC_000962.3\t{pos}\t.\t{ref.upper()}\t{alt.upper()}\t.\tPASS\t.\tGT\t1/1\n"
+    )
+
+    with tempfile.NamedTemporaryFile("w", delete=False, suffix=".vcf") as f:
+        f.write(vcf_str)
+        temp_vcf_path = f.name
+
+    vcf = gumpy.VCFFile(temp_vcf_path)
+    #vcf = gumpy.VCFFile(io.StringIO(vcf_str))
+    sample = global_reference + vcf
+
+    ref_gene = global_ref_genes[gene_name]
+    alt_gene = sample.build_gene(gene_name)
+
+    diff = ref_gene - alt_gene
+    mutations = [gene_name + "@" + mut for mut in diff.mutations.tolist()]
+
+    return "&".join(mutations)
+
+
+def parse_mutation_worker(args):
+    index, mutation, variant_name = args
+    if ('ins' in mutation or 'del' in mutation or '-' in mutation) and ('&' not in mutation):
+        try:
+            gene = mutation.split('@')[0]
+            pos = int(global_genome_indices[global_genome_indices.variant == variant_name].genome_index.values[0])
+            ref = mutation.split('@')[1].split('_')[-2]
+            alt = mutation.split('@')[1].split('_')[-1]
+            normalised = get_normalized_garc(gene_name=gene, pos=pos, ref=ref, alt=alt)
+            return index, normalised
+        except Exception as e:
+            return index, f"ERROR@{str(e)}"
+    else:
+        return index, mutation
+
+
+def generate_garc_mutations(catalogue_path, genome_path):
+    # Load data
+    who_original = pd.read_excel(catalogue_path, sheet_name='Mutation_catalogue').reset_index()
+    genome_indices = pd.read_excel(catalogue_path, sheet_name='Genome_indices').reset_index()
+
+    who_original['variant (common_name)'] = who_original['variant (common_name)'].str.replace(r'\s*\(.*?\)', '', regex=True)
+
+
+    # Preprocess mutations
+    who_original['Mutation'] = (
+        who_original['variant (common_name)']
+        .str.replace('_', '@', n=1)
+        .str.replace(' ', '&')
+    )
+    who_original.dropna(subset=['drug'], inplace=True)
+
+    # Prepare data for workers
+    args_list = [
+        (idx, row['Mutation'], row['variant (common_name)'])
+        for idx, row in who_original.iterrows()
+    ]
+
+    # Parallel processing
+    ctx = mp.get_context("fork")  # "fork" preferred on Unix for memory efficiency
+    with ctx.Pool(mp.cpu_count(), initializer, (genome_path, genome_indices)) as pool: #dont use max cores, avoid thrashing
+        results = pool.map(parse_mutation_worker, args_list)
+
+    # Reintegrate results
+    translated_dict = dict(results)
+    translated_vars = [translated_dict.get(i+1, None) for i in range(len(who_original))]
+    who_original['GARC_MUTATION'] = translated_vars
+
+    return who_original
+
+
+def expand_catalogue_pair(cat1, cat2, drugs, model, cat_names, who_cat=None):
     """This function takes 2 catalogues with rules in, and expands them to include any rows in the other
     catalogue that fall under that rule - this allows one to compare the effective contents of each catalogues,
-    not just specific rows."""
+    not just specific rows.
+    who_cat must either be None, 'WHOv1', or 'WHOv2 - used for flagging expert intervention from original files
+    """
 
     cat1_no_rules = cat1[~cat1["MUTATION"].str.contains(r"[*?=]", regex=True)]
     cat1_rules_only = cat1[cat1["MUTATION"].str.contains(r"[*?=]", regex=True)]
-    cat2_no_rules = cat2[~cat2["MUTATION"].str.contains(r"[*?=]", regex=True)]
-    cat2_rules_only = cat2[cat2["MUTATION"].str.contains(r"[*?=]", regex=True)]
+    #cat2_no_rules = cat2[cat2["EVIDENCE"].apply(lambda x: bool(x))] 
+    #cat2_rules_only = cat2[~cat2["EVIDENCE"].apply(lambda x: bool(x))]
+
+    if who_cat == 'WHOv1':
+
+        w_garc_path = 'catalogues/whov1/WHO-UCN-GTB-PCI-2021.7-eng_w_GARC.xlsx'
+        #flag mutations that had expert rules applied to WHOv1
+        if not os.path.exists(w_garc_path):
+            generate_garc_mutations('catalogues/whov1/WHO-UCN-GTB-PCI-2021.7-eng.xlsx', 'data/NC_000962.3.gbk').to_excel(w_garc_path)
+
+        who_original = pd.read_excel(w_garc_path)
+
+        filtered = who_original[~who_original['Additional grading criteria'].isna()]
+
+        prediction_map = {
+            'Assoc w R': 'R',
+            'Assoc w R - Interim': 'R',
+            'Uncertain significance': 'U',
+            'Not assoc w R': 'S',
+            'Not assoc w R - Interim': 'S'
+        }
+        filtered['PREDICTION'] = filtered['INITIAL CONFIDENCE GRADING'].map(prediction_map)
+        mapping = dict(zip(filtered['GARC_MUTATION'], filtered['PREDICTION']))
+        normalized_order = {
+            '&'.join(sorted(key.split('&'))): val
+            for key, val in mapping.items()
+        }
+        def normalize_order(mutation_str):
+            return '&'.join(sorted(mutation_str.split('&')))
+        
+        cat2_no_rules = cat2[(~cat2["MUTATION"].str.contains(r"[*?=]", regex=True))&(~cat2['MUTATION'].str.contains('indel'))]
+        cat2_no_rules['PREDICTION'] = cat2_no_rules.apply(
+            lambda row: normalized_order.get(normalize_order(row['MUTATION']), row['PREDICTION']),
+            axis=1
+        )
+        cat2_rules_only = cat2[(cat2["MUTATION"].str.contains(r"[*?=]", regex=True))|(cat2['MUTATION'].isin(mapping.keys()))]   
+
+    elif who_cat == 'WHOv2':
+        print ('WHOv2 rule comparisons not yet supported, still need to implement')
+    else:
+        cat2_no_rules = cat2[~cat2["MUTATION"].str.contains(r"[*?=]", regex=True)]
+        cat2_rules_only = cat2[cat2["MUTATION"].str.contains(r"[*?=]", regex=True)]   
+
 
     expanded_catalogues = {}
 
@@ -584,17 +721,37 @@ def expand_catalogue_pair(cat1, cat2, drugs, model, cat_names):
                 [cat1_no_rules_drug, pd.DataFrame([row])], ignore_index=True
             )
 
-        expanded_catalogues[drug] = {
+        if who_cat=='WHOv1': 
+            #remap final predictions back to merged df (slightly hacky)
+            prediction_map = dict(zip(cat2_drug['MUTATION'], cat2_drug['PREDICTION']))
+            cat2_no_rules_drug_for_merged = cat2_no_rules_drug.copy()
+            cat2_no_rules_drug_for_merged['PREDICTION'] = cat2_no_rules_drug_for_merged.apply(
+                lambda row: prediction_map[row['MUTATION']] if row['MUTATION'] in prediction_map else row['PREDICTION'],
+                axis=1
+            )
+            expanded_catalogues[drug] = {
             cat_names[0]: cat1_no_rules_drug.drop_duplicates("MUTATION"),
             cat_names[1]: cat2_no_rules_drug.drop_duplicates("MUTATION"),
             "merged": pd.merge(
                 cat1_no_rules_drug,
-                cat2_no_rules_drug,
+                cat2_no_rules_drug_for_merged,
                 on="MUTATION",
                 how="outer",
                 suffixes=(f"_{cat_names[0]}", f"_{cat_names[1]}"),
             ),
         }
+        else:
+            expanded_catalogues[drug] = {
+                cat_names[0]: cat1_no_rules_drug.drop_duplicates("MUTATION"),
+                cat_names[1]: cat2_no_rules_drug.drop_duplicates("MUTATION"),
+                "merged": pd.merge(
+                    cat1_no_rules_drug,
+                    cat2_no_rules_drug,
+                    on="MUTATION",
+                    how="outer",
+                    suffixes=(f"_{cat_names[0]}", f"_{cat_names[1]}"),
+                ),
+            }
 
     return expanded_catalogues
 
@@ -765,13 +922,13 @@ def sum_solo_counts(df, suffixes=["cat", "who"]):
 def read_data(file_path):
     """Reads .pkl, .pkl.gz, .csv, .csv.gz, or .parquet files automatically."""
     file_path = Path(file_path)
-    ext = "".join(file_path.suffixes).lower()  # Get full extension, e.g., ".pkl.gz"
+    ext = "".join(file_path.suffixes).lower()
 
     read_funcs = {
         ".pkl": pd.read_pickle,
-        ".pkl.gz": pd.read_pickle,  # Supports compressed pickle
-        ".csv": pd.read_csv,
-        ".csv.gz": pd.read_csv,  # Supports compressed CSV
+        ".pkl.gz": pd.read_pickle,
+        ".csv": lambda f: pd.read_csv(f, low_memory=False),
+        ".csv.gz": lambda f: pd.read_csv(f, low_memory=False),
         ".parquet": pd.read_parquet,
     }
 
@@ -779,6 +936,7 @@ def read_data(file_path):
         return read_funcs[ext](file_path)
 
     raise ValueError(f"Unsupported file type: {ext}")
+
 
 
 def flatten_grid_results(grid):
@@ -791,7 +949,7 @@ def flatten_grid_results(grid):
                 "p_value": p_value,
                 "SENSITIVITY": metrics.get("sens"),
                 "SPECIFICITY": metrics.get("spec"),
-                "COVERAGE": metrics.get("cov"),
+                "DPR": metrics.get("dpr"),
                 "SENSITIVITY2": metrics.get("sens2"),
                 "SPECIFICITY2": metrics.get("spec2"),
             }
@@ -818,7 +976,7 @@ def plot_grid_results(df, height=4):
 
 def weighted_score(df, weights=(0.5, 0.3, 0.2)):
     w1, w2, w3 = weights
-    df["Score"] = w1 * df["SENSITIVITY"] + w2 * df["SPECIFICITY"] + w3 * df["COVERAGE"]
+    df["Score"] = w1 * df["SENSITIVITY"] + w2 * df["SPECIFICITY"] + w3 * df["DPR"]
     return df.sort_values(by="Score", ascending=False)
 
 
@@ -1246,6 +1404,7 @@ def plot_cat_comp_proportions(
         plt.show()
 
 
+
 def plot_perf_heatmaps(performance_df, draw_axes=True):
     """Iterates through a single performance dataframe and plots one drug at a time."""
 
@@ -1260,11 +1419,11 @@ def plot_perf_heatmaps(performance_df, draw_axes=True):
         "green_gray", ["#D3D3D3", "#2E8B57"]
     )  # Dark green → Light gray
 
-    metrics = ["Sensitivity", "Specificity", "Coverage"]
+    metrics = ["Sensitivity", "Specificity", "DPR"]
     colormaps = [red_gray_cmap, blue_gray_cmap, green_gray_cmap]
     colormaps = ["Reds", "Blues", "Greens"]
     for drug in performance_df["Drug"].unique():
-        fig, axes = plt.subplots(1, 3, figsize=(7, 2))
+        fig, axes = plt.subplots(1, 3, figsize=(6.69, 2))
 
         for i, (metric, cmap) in enumerate(zip(metrics, colormaps)):
             subset_df = performance_df[performance_df["Drug"] == drug].pivot(
@@ -1292,6 +1451,7 @@ def plot_perf_heatmaps(performance_df, draw_axes=True):
             ax.set_ylabel("")
             # ax.set_ylabel("Build min FRS", fontsize=6)
             ax.invert_yaxis()
+            ax.set_title(drug)
 
             if draw_axes:
                 # Force normal notation on axis tick labels
@@ -1317,7 +1477,7 @@ def plot_perf_heatmaps(performance_df, draw_axes=True):
                 ax.set_xticks([])
                 ax.set_yticks([])
                 ax.set_xticklabels([])
-
+  
         plt.savefig(f"figs/frs/{drug}.pdf", bbox_inches="tight", transparent=True)
         plt.tight_layout()
         plt.show()
@@ -1366,10 +1526,9 @@ def plot_mutation_error_bars(
             filt = np.abs(np.array(y_errors[0]) - np.array(y_errors[1])) <= min_err
             x_values = x_values[filt]
             y_values = y_values[filt]
-            y_errors = (
-                np.array(y_errors[0])[filt],
-                np.array(y_errors[1])[filt],
-            )  # Keep same structure
+            lower = np.maximum(np.array(y_errors[0])[filt], 0)
+            upper = np.minimum(np.array(y_errors[1])[filt], 1)
+            y_errors = (lower, upper)
 
             # Scatter points with error bars, applying consistent jitter
             if len(x_values) > 0:
@@ -1395,7 +1554,7 @@ def plot_mutation_error_bars(
         plt.xticks(np.arange(0.1, 1.05, 0.1))  # Minor ticks at every 0.05
         plt.ylim(-0.05, 1.05)  # Keep proportions in range
         plt.grid(True, linestyle="--", alpha=0.5)
-        num_cols = min(num_mutations, 7)  # Adjust '5' as needed for your plot width
+        num_cols = min(num_mutations, 8)  # Adjust '5' as needed for your plot width
         plt.legend(
             title="Mutation",
             loc="upper center",
@@ -1500,70 +1659,7 @@ def plot_frs_vs_mic(df_mic, color_map={}, figpath=None, min_n=0):
         plt.show()
 
 
-def plot_pheno_counts(phenotypes, title, who_drugs, savefig):
-    # Compute the count for each (DRUG, PHENOTYPE)
-    barplot = (
-        phenotypes.groupby(["DRUG", "PHENOTYPE"])["UNIQUEID"]
-        .nunique()
-        .reset_index()
-        .rename(columns={"UNIQUEID": "count"})
-    )
 
-    # Compute total count per DRUG (sum of R, S, U)
-    # total_counts = barplot.groupby("DRUG")["count"].sum().reset_index()
-
-    # Order DRUGs by total count descending
-    # plot_order = total_counts.sort_values("count", ascending=False)["DRUG"].tolist()
-
-    # Create the bar plot
-    plt.figure(figsize=(10, 3.2))
-    axis = sns.barplot(
-        data=barplot,
-        x="DRUG",
-        y="count",
-        hue="PHENOTYPE",
-        hue_order=["S", "R"],
-        order=who_drugs,
-        dodge=True,
-        palette=["gainsboro", "dimgrey"],  # palette=["#034e7b", "#990000"],
-        alpha=0.9,
-    )
-
-    axis.set_ylabel("")
-    axis.set_xlabel("")
-    # axis.set_ylim([0, 29000])
-    axis.get_yaxis().set_major_formatter(
-        matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ","))
-    )
-
-    # Customize the plot
-    plt.xticks(rotation=0, fontsize=10)
-    plt.yticks(fontsize=10)
-    # plt.ylabel("# unique samples", fontsize=7)
-    # plt.xlabel("Drug", fontsize=7)
-    print(f"{title}: {phenotypes.UNIQUEID.nunique()} samples")
-    plt.legend(title="Phenotype")
-    sns.set_theme(style="whitegrid")
-
-    # Annotate bars with values
-    for p in plt.gca().patches:
-        if p.get_height() > 0:  # Only label non-zero bars
-            plt.text(
-                p.get_x() + p.get_width() / 2,
-                p.get_height() + 0.5,
-                f"{int(p.get_height()):,d}",
-                ha="center",
-                va="bottom",
-                fontsize=10,
-            )
-    axis.legend().set_visible(False)
-    # plt.legend(frameon=False, fontsize=7)
-    plt.grid(False)
-    sns.despine()
-    plt.tight_layout()
-    plt.savefig(savefig, transparent=True, bbox_inches="tight")
-    # Show the plot
-    plt.show()
 
 
 # Helper function to create binary data for upset plots
