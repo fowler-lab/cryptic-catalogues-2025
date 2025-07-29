@@ -13,3 +13,8 @@
 *pyc
 *~
 .DS_Store
+/literature
+/drafts
+/cache_dir
+/__pycache__
+main.ipynb

@@ -290,7 +290,7 @@ def piezo_predict(
     dpr = (len(labels) - predictions.count("U")) / len(labels)
 
     # Calculate binary performance metrics
-    sensitivity2 = TP / (TP + FN + UN)
+    sensitivity2 = TP / (TP + FN + UP)
     specificity2 = (TN + UN) / (TN + UN + FP)
 
     if Print:

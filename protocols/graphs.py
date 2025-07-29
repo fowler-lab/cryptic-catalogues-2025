@@ -39,8 +39,8 @@ colours = {
     "WHOv1": ("#fdbb84", "#a6bddb", "#99d8c9"),
     "WHOv1_no_rules": ("#c994c7", "#807dba", "#02818a"),
     "WHOv2": ("#ef6548", "#3690c0", "#41ae76"),
-    "catomatic_v3.4.0": ("#990000", "#034e7b", "#005824"),
-    "catomatic_v3.4.0_all_samples": ("#e31a1c", "#6a51a3", "#238b45"),
+    "MTBC-CRyPTICv1.1.1-2025.8": ("#990000", "#034e7b", "#005824"),
+    "MTBC-CRyPTICv3.4.0-2025.8": ("#e31a1c", "#6a51a3", "#238b45"),
 
 }
 
@@ -239,7 +239,7 @@ def plot_bar_catomatic_coverage(
     outfile,
     who_drugs,
     catalogues='all',
-    figsize=(2.2, 7.5),
+    figsize=(2.2, 8),
     barwidth=0.285,
     show_graph=False,
 ):
@@ -428,7 +428,7 @@ def plot_venn_catomatic_per_drug(expanded_catalogues, valid_drugs, output_dir):
             subsets=(only_cat, only_cat_all, shared),
             set_labels=('', ''),
             ax=ax,
-            set_colors=(colours["catomatic_v3.4.0"][2], colours["catomatic_v3.4.0_all_samples"][2])
+            set_colors=(colours["MTBC-CRyPTICv1.1.1-2025.8"][2], colours["MTBC-CRyPTICv3.4.0-2025.8"][2])
         )
 
         # Set patch transparencies
@@ -490,7 +490,7 @@ def plot_venn_pair_per_drug(expanded_catalogues, valid_drugs, output_dir):
                 subsets=(only_cat, only_who, shared),
                 set_labels=('', ''),
                 ax=ax,
-                set_colors=(colours["catomatic_v3.4.0"][2], colours["WHOv1"][2])
+                set_colors=(colours["MTBC-CRyPTICv1.1.1-2025.8"][2], colours["WHOv1"][2])
             )
 
             if venn_diagram.get_patch_by_id('10'):  # Left circle
@@ -1150,17 +1150,17 @@ def frs_gene_violins(all_mutations):
                 area = np.trapezoid(x_sorted[side_mask] - x_mean, y_sorted[side_mask]) * 2
                 break
 
-        #label = f"{plotted}/{total}\n{frac:.0f}%"
-        label = f"{frac:.0f}%"
+        label = f"{plotted}/{total}\n{frac:.0f}%"
+        #label = f"{frac:.0f}%"
 
         print (f"{gene}: {plotted}/{total} = {frac:.2f}%")
 
         ax.text(
             i, 
-            1.0, #1.1 if i % 2 == 0 else 1.0,  # even indices slightly higher
+            1.1 if i % 2 == 0 else 1.0,  # even indices slightly higher, or 1.0 to swithc off
             label,
             ha="center", va="center",
-            fontsize=6
+            fontsize=5.5
         )
 
     plt.xticks(rotation=45, ha='right')

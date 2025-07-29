@@ -47,54 +47,6 @@
     "pred": "U",
     "evid": { "default_rule": "True" }
   },
-  "mmpS5@del_0.0": {
-    "pred": "U",
-    "evid": { "default_rule": "True" }
-  },
-  "mmpS5@*=": {
-    "pred": "S",
-    "evid": { "default_rule": "True" }
-  },
-  "mmpS5@-*_indel": {
-    "pred": "U",
-    "evid": { "default_rule": "True" }
-  },
-  "mmpS5@*_indel": {
-    "pred": "U",
-    "evid": { "default_rule": "True" }
-  },
-  "mmpS5@-*?": {
-    "pred": "U",
-    "evid": { "default_rule": "True" }
-  },
-  "mmpS5@*?": {
-    "pred": "U",
-    "evid": { "default_rule": "True" }
-  },
-  "mmpL5@*=": {
-    "pred": "S",
-    "evid": { "default_rule": "True" }
-  },
-  "mmpL5@-*_indel": {
-    "pred": "U",
-    "evid": { "default_rule": "True" }
-  },
-  "mmpL5@*_indel": {
-    "pred": "U",
-    "evid": { "default_rule": "True" }
-  },
-  "mmpL5@-*?": {
-    "pred": "U",
-    "evid": { "default_rule": "True" }
-  },
-  "mmpL5@*?": {
-    "pred": "U",
-    "evid": { "default_rule": "True" }
-  },
-  "mmpL5@del_0.0": {
-    "pred": "U",
-    "evid": { "default_rule": "True" }
-  },
   "atpE@*=": {
     "pred": "S",
     "evid": { "default_rule": "True" }
