@@ -9,8 +9,8 @@ from scipy.stats import norm
 import matplotlib.cm as cm
 import multiprocessing as mp
 from matplotlib.collections import PolyCollection
-
-
+import matplotlib.patches as mpatches
+import os
 
 
 
@@ -36,13 +36,117 @@ plot_order = [
 
 
 colours = {
-    "WHOv1": ("#fdbb84", "#a6bddb", "#99d8c9"),
-    "WHOv1_no_rules": ("#c994c7", "#807dba", "#02818a"),
+    "WHOv1": ("#f8a764", "#a6bddb", "#99d8c9"),
+    "WHO1": ("#ef6548", "#3690c0", "#41ae76"),
+    "WHOv1_no_rules": ("#c872c5", "#726eba", "#02818a"),
     "WHOv2": ("#ef6548", "#3690c0", "#41ae76"),
     "MTBC-CRyPTICv1.1.1-2025.8": ("#990000", "#034e7b", "#005824"),
-    "MTBC-CRyPTICv3.4.0-2025.8": ("#e31a1c", "#6a51a3", "#238b45"),
-
+    "MTBC-CRyPTICv3.4.0-2025.8": ("#f21317", "#876dc5", "#2ead58"),
 }
+
+def plot_scatter_who(
+    df,
+    who_results,
+    outfile,
+    who_drugs,
+    sensitivity="SENSITIVITY",
+    specificity="SPECIFICITY",
+    figsize=(6.5, 4.8),
+    show_graph=False,
+):
+    # Drugs to plot in specified order
+    ordered_drugs = [drug for drug in plot_order if drug in who_drugs]
+
+    # Subset WHOv1 catalogues
+    df_who1 = df[df.catalogue == "WHOv1"].copy()
+    who1_results = who_results[who_results.catalogue == "WHO1"].copy()
+
+    # Reindex for consistent order
+    df_who1 = df_who1.set_index("DRUG").reindex(ordered_drugs).reset_index()
+    who1_results = who1_results.set_index("drug").reindex(ordered_drugs).reset_index()
+
+    # Set up 2 stacked subplots (Sensitivity, Specificity)
+    fig, axes = plt.subplots(
+        nrows=2, ncols=1, sharex=True,
+        figsize=figsize, constrained_layout=True
+    )
+
+    metrics = [
+        (sensitivity, "Sensitivity (%)", 0),
+        (specificity, "Specificity (%)", 1)
+    ]
+
+    x_positions = np.arange(len(ordered_drugs))
+    offsets = np.linspace(-0.2, 0.2, 2)  # consistent with catomatic
+    marker_style = "_"
+
+    for ax, (metric, ylabel, colour_idx) in zip(axes, metrics):
+        # WHOv1 (external WHO report)
+        ax.scatter(
+            x_positions + offsets[0],
+            who1_results[metric.lower()] if metric.lower() in who1_results.columns else who1_results[metric],
+            marker=marker_style,
+            color=colours["WHO1"][colour_idx],
+            s=120,
+            linewidth=2.5,
+            label="WHOv1"
+        )
+
+        # WHOv1 (this study)
+        ax.scatter(
+            x_positions + offsets[1],
+            df_who1[metric] * 100,
+            marker=marker_style,
+            color=colours["WHOv1"][colour_idx],
+            s=120,
+            linewidth=2.5,
+            label="WHOv1 (this study)"
+        )
+
+        # Formatting
+        ax.set_ylabel(ylabel, fontsize=9)
+        ax.set_ylim(0, 105)
+        ax.tick_params(axis="both", labelsize=8.5)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.grid(False)
+
+        # Faint vertical separators
+        for xpos in x_positions[:-1]:
+            ax.axvline(x=xpos + 0.5, color="lightgrey", linestyle="-", linewidth=0.3, alpha=0.5)
+
+    # Remove xticks completely
+    axes[-1].set_xticks([])
+    axes[-1].set_xticklabels([])
+
+    # Add drug labels manually under bottom panel
+    for xpos, drug in enumerate(ordered_drugs):
+        axes[-1].text(
+            xpos, -8, drug,
+            ha="center", va="top", fontsize=9
+        )
+
+    # Add legend at top
+    handles, labels = axes[0].get_legend_handles_labels()
+    #fig.legend(
+    #    handles, labels, frameon=False, fontsize=8,
+    #    loc="upper center", ncol=2
+    #)
+
+    # Fix x-axis range
+    for ax in axes:
+        ax.set_xlim(-0.5, len(ordered_drugs) - 0.5)
+
+    # Save
+    fig.savefig(outfile, bbox_inches="tight", dpi=600, transparent=True)
+    if show_graph:
+        plt.show()
+    plt.close()
+
+
+
+
+
 
 
 def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
@@ -129,6 +233,103 @@ def plot_bar_who(df, who_results, outfile, who_drugs, show_graph=False):
         axis2.text(-11, i, drug, ha="center", va="center", fontsize=7)
 
     # Save the figure
+    fig.savefig(outfile, bbox_inches="tight", dpi=600, transparent=True)
+
+    if show_graph:
+        plt.show()
+    plt.close()
+
+
+def plot_scatter_catomatic(
+    df,
+    outfile,
+    who_drugs,
+    catalogues="all",
+    sensitivity="SENSITIVITY",
+    specificity="SPECIFICITY",
+    dpr="COVERAGE",
+    figsize=(6.5, 6.5),
+    show_graph=False,
+):
+    # Subset drugs in specified order
+    ordered_drugs = [drug for drug in plot_order if drug in who_drugs]
+
+    if catalogues == "all":
+        catalogues = df.catalogue.unique()
+
+    # Subset dataframe to only selected catalogues
+    df = df[df.catalogue.isin(catalogues)].copy()
+
+    # Create mapping catalogue -> dataframe reindexed to drug order
+    df_by_cat = {
+        cat: df[df.catalogue == cat].set_index("DRUG").reindex(ordered_drugs).reset_index()
+        for cat in catalogues
+    }
+
+    # Set up 3 stacked subplots (DPR, Sensitivity, Specificity)
+    fig, axes = plt.subplots(
+        nrows=3, ncols=1, sharex=True,
+        figsize=figsize, constrained_layout=True
+    )
+
+    metrics = [
+        (dpr, "DPR (%)", 2),
+        (sensitivity, "Sensitivity (%)", 0),
+        (specificity, "Specificity (%)", 1)
+    ]
+
+    marker_style = "_"
+    offsets = np.linspace(-0.2, 0.2, len(catalogues))
+    x_positions = np.arange(len(ordered_drugs))
+
+    for ax, (metric, ylabel, colour_idx) in zip(axes, metrics):
+        for i, cat in enumerate(catalogues):
+            df_cat = df_by_cat[cat]
+            color = colours.get(cat, ("grey", "grey"))[colour_idx]
+
+            ax.scatter(
+                x_positions + offsets[i],
+                df_cat[metric] * 100,
+                marker=marker_style,
+                color=color,
+                s=100,
+                linewidth=2.5,
+                label=cat
+            )
+
+        # Formatting
+        ax.set_ylabel(ylabel, fontsize=9)
+        ax.set_ylim(0, 105)
+        ax.tick_params(axis="both", labelsize=8.5)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.grid(False)
+
+        # Add faint vertical separators between drug bins
+        for xpos in x_positions[:-1]:
+            ax.axvline(x=xpos + 0.5, color="lightgrey", linestyle="-", linewidth=0.3, alpha=0.5)
+
+    # Remove xticks completely
+    axes[-1].set_xticks([])
+    axes[-1].set_xticklabels([])
+
+    # Add drug labels manually, centered under each bin
+    for xpos, drug in enumerate(ordered_drugs):
+        axes[-1].text(
+            xpos, -8, drug,  # place just below the axis
+            ha="center", va="top", fontsize=9
+        )
+
+    # Legend at top
+    handles, labels = axes[0].get_legend_handles_labels()
+    #fig.legend(
+    #    handles, labels, frameon=False, fontsize=7,
+    #    loc="upper center", ncol=len(catalogues)
+    #)
+
+    # Fix x-axis limits to remove awkward padding
+    for ax in axes:
+        ax.set_xlim(-0.5, len(ordered_drugs) - 0.5)
     fig.savefig(outfile, bbox_inches="tight", dpi=600, transparent=True)
 
     if show_graph:
@@ -413,19 +614,19 @@ def plot_venn_catomatic_per_drug(expanded_catalogues, valid_drugs, output_dir):
         merged = expanded_catalogues[drug]['merged']
 
         shared = merged[
-            (~merged.PREDICTION_cat.isna()) & (~merged.PREDICTION_cat_all.isna())
+            (~merged.PREDICTION_cat.isna()) & (~merged.PREDICTION_cats_all.isna())
         ].MUTATION.nunique()
 
         only_cat = merged[
-            (~merged.PREDICTION_cat.isna()) & (merged.PREDICTION_cat_all.isna())
+            (~merged.PREDICTION_cat.isna()) & (merged.PREDICTION_cats_all.isna())
         ].MUTATION.nunique()
 
-        only_cat_all = merged[
-            (merged.PREDICTION_cat.isna()) & (~merged.PREDICTION_cat_all.isna())
+        only_cats_all = merged[
+            (merged.PREDICTION_cat.isna()) & (~merged.PREDICTION_cats_all.isna())
         ].MUTATION.nunique()
 
         venn_diagram = venn2(
-            subsets=(only_cat, only_cat_all, shared),
+            subsets=(only_cat, only_cats_all, shared),
             set_labels=('', ''),
             ax=ax,
             set_colors=(colours["MTBC-CRyPTICv1.1.1-2025.8"][2], colours["MTBC-CRyPTICv3.4.0-2025.8"][2])
@@ -520,6 +721,156 @@ def plot_venn_pair_per_drug(expanded_catalogues, valid_drugs, output_dir):
         print (drug)
         plt.show()
         plt.close(fig)
+
+
+def _counts_for(drug, expanded_catalogues, use_filtered):
+    """Returns (only_cat, only_who, shared) for a given drug."""
+    if use_filtered:
+        # RULES EXCLUDED
+        cat_filtered = expanded_catalogues[drug]['cat']
+        cat_filtered = cat_filtered[
+            (~cat_filtered.MUTATION.str.contains(r"[?*=]", regex=True, na=False)) &
+            (cat_filtered.EVIDENCE != {'expanded_rule'})
+        ]
+        cat_filtered = cat_filtered[
+            (cat_filtered.PREDICTION != 'U') &
+            (~cat_filtered.MUTATION.str.contains('indel'))
+        ]
+        mutations_cat = set(cat_filtered['MUTATION'])
+
+        who_filtered = expanded_catalogues[drug]['who']
+        who_filtered = who_filtered[
+            (~who_filtered.MUTATION.str.contains(r"[?*=]", regex=True, na=False)) &
+            (who_filtered.EVIDENCE != {'expanded_rule'})
+        ]
+        who_filtered = who_filtered[
+            (who_filtered.PREDICTION != 'U') &
+            (~who_filtered.MUTATION.str.contains('indel'))
+        ]
+        mutations_who = set(who_filtered['MUTATION'])
+
+        only_cat = len(mutations_cat - mutations_who)
+        only_who = len(mutations_who - mutations_cat)
+        shared   = len(mutations_cat & mutations_who)
+    else:
+        # RULES APPLIED
+        merged = expanded_catalogues[drug]['merged']
+        shared   = merged[(~merged.PREDICTION_who.isna()) & (~merged.PREDICTION_cat.isna())].MUTATION.nunique()
+        only_who = merged[(~merged.PREDICTION_who.isna()) & ( merged.PREDICTION_cat.isna())].MUTATION.nunique()
+        only_cat = merged[( merged.PREDICTION_who.isna()) & (~merged.PREDICTION_cat.isna())].MUTATION.nunique()
+
+    return only_cat, only_who, shared
+
+
+
+def plot_floating_bars(expanded_catalogues, valid_drugs, output_path=None, figsize=(6.69, 8), legend=False):
+    """
+    Floating stacked bar plot:
+      - CAT only (rules applied) above line
+      - In both (rules excluded) centred at y=0
+      - Below the line: In both (rules only), WHO only (rules only), WHO only (rules excluded)
+    """
+    drugs = []
+    segs_all = []
+
+    for drug in valid_drugs:
+        # Counts
+        cat_only_applied, who_only_applied, shared_applied = _counts_for(drug, expanded_catalogues, use_filtered=False)
+        _, who_only_excluded, shared_excluded = _counts_for(drug, expanded_catalogues, use_filtered=True)
+
+        segs_all.append({
+            "cat_only_applied": cat_only_applied,
+            "both_excluded": shared_excluded,
+            "both_rules": max(shared_applied - shared_excluded, 0),
+            "who_only_rules": max(who_only_applied - who_only_excluded, 0),
+            "who_only_excluded": who_only_excluded
+        })
+        drugs.append(drug)
+
+    colors = {
+        "cat_only_applied": "#df4557",
+        "both_excluded": "#df65b0",
+        "both_rules": "#9471fa",
+        "who_only_rules": "#74a9cf",
+        "who_only_excluded": "#3173b5"
+    }
+
+    labels = {
+        "cat_only_applied": "catomatic-1 only",
+        "both_excluded": "In both, excl. WHOv1 rules",
+        "both_rules": "In both, with WHOv1 rules",
+        "who_only_rules": "WHOv1 rules only",
+        "who_only_excluded": "WHOv1 only, excl. WHOv1 rules"
+    }
+
+    legend_order = ["cat_only_applied", "both_excluded", "both_rules", "who_only_rules", "who_only_excluded"]
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    for i, drug in enumerate(drugs):
+        segs = segs_all[i]
+
+        # --- centre segment (on the line) ---
+        centre_h = segs["both_excluded"]
+        #plot_h = centre_h + 1 if centre_h == 1 else centre_h
+        plot_h = centre_h
+        ax.bar(i, plot_h, bottom=-plot_h/2,
+               color=colors["both_excluded"], edgecolor="white", linewidth=1)
+        if centre_h>0:
+            ax.text(i, 0, str(centre_h), ha="center", va="center", fontsize=7)
+
+        # --- above line (CAT only) ---
+        h = segs["cat_only_applied"]
+        if h > 0:
+            #plot_h = h if h > 1 else 2
+            plot_h = h
+            ax.bar(i, plot_h, bottom=centre_h/2,
+                color=colors["cat_only_applied"], edgecolor="white", linewidth=1)
+            ax.text(i, centre_h/2 + plot_h/2, str(h), ha="center", va="center", fontsize=7)
+
+
+        # --- below line (stacked downward, swapped order) ---
+        bottom = -centre_h/2
+        for key in ["both_rules", "who_only_rules", "who_only_excluded"]:
+            h = segs[key]
+            if h > 0:
+                #plot_h = h if h > 1 else 2
+                plot_h = h
+                ax.bar(i, plot_h, bottom=bottom - plot_h,
+                    color=colors[key], edgecolor="white", linewidth=1)
+                ax.text(i, bottom - plot_h/2, str(h), ha="center", va="center", fontsize=7)
+                bottom -= plot_h
+
+    ax.axhline(0, color="0.2", linewidth=0.6, alpha=0.35, zorder=-1)
+    # cosmetics
+    ax.set_xticks(range(len(drugs)))
+    ax.set_xticklabels(drugs, fontsize=8)
+
+    # remove y-axis and spines
+    ax.yaxis.set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    # removed centre line (axhline)
+
+    ymin, ymax = ax.get_ylim()
+    pad = (ymax - ymin) * 0.01   # 5% of the total height
+    ax.set_ylim(ymin - pad, ymax + pad)
+
+    # legend (fixed order)
+    patches = [mpatches.Patch(color=colors[k], label=labels[k]) for k in legend_order]
+    if legend:
+        ax.legend(handles=patches,
+                fontsize=7, frameon=False,
+                loc="lower center")
+
+    fig.tight_layout()
+    if output_path is not None:
+        fig.savefig(output_path)
+    plt.show()
+    plt.close(fig)
+
+
 
 def plot_pheno_counts(phenotypes, title, savefig):
     # Compute the count for each (DRUG, PHENOTYPE)
@@ -1088,7 +1439,7 @@ def frs_gene_violins(all_mutations):
     }
 
     # === STEP 3: Plot ===
-    fig, ax = plt.subplots(figsize=(6.69, 2))
+    fig, ax = plt.subplots(figsize=(6.69, 2.8))
 
     violin = sns.violinplot(
         x="GENE",
@@ -1160,9 +1511,274 @@ def frs_gene_violins(all_mutations):
             1.1 if i % 2 == 0 else 1.0,  # even indices slightly higher, or 1.0 to swithc off
             label,
             ha="center", va="center",
-            fontsize=5.5
+            fontsize=6.4
         )
 
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
     plt.show()
+
+def split_FRS_essential_violins(data):
+    outlier_gene = "embB"
+
+    # Filter FRS < 0.9
+    base = data[data["Read Support"] < 0.9].copy()
+
+    # Three groups
+    essential_all = base[base["Gene Category"] == "Essential"].copy()
+    essential_all["Category3"] = "Essential"
+
+    essential_no_embB = base[(base["Gene Category"] == "Essential") &
+                             (base["Gene"] != outlier_gene)].copy()
+    essential_no_embB["Category3"] = "Essential excl. embB"
+
+    non_essential = base[base["Gene Category"] == "Non-Essential"].copy()
+    non_essential["Category3"] = "Non-Essential"
+
+    # Combine
+    plot_data = pd.concat([essential_all, essential_no_embB, non_essential], axis=0)
+
+    order = ["Essential", "Essential excl. embB", "Non-Essential"]
+
+    # Totals for scaling + annotation
+    total_counts = {
+        "Essential": len(data[data["Gene Category"] == "Essential"]),
+        "Essential excl. embB": len(data[(data["Gene Category"] == "Essential") & (data["Gene"] != outlier_gene)]),
+        "Non-Essential": len(data[data["Gene Category"] == "Non-Essential"])
+    }
+    shown_counts = plot_data["Category3"].value_counts().to_dict()
+    scaling_factors = {k: shown_counts.get(k, 0)/total_counts[k] for k in total_counts if total_counts[k] > 0}
+    max_scale = max(scaling_factors.values()) if scaling_factors else 1
+
+    # === Plot ===
+    fig, ax = plt.subplots(figsize=(4, 2))
+
+    sns.violinplot(
+        x="Category3",
+        y="Read Support",
+        data=plot_data,
+        order=order,
+        inner=None,
+        cut=0,
+        bw=0.2,
+        scale="area",
+        palette={
+            "Essential": "#CFAFEF",
+            "Essential excl. embB": "#AF7AC5",
+            "Non-Essential": "#FFD1DC"
+        },
+        ax=ax
+    )
+
+    # Scale violin widths
+    category_positions = dict(zip(order, range(len(order))))
+    for artist in ax.findobj(match=PolyCollection):
+        path = artist.get_paths()[0]
+        verts = path.vertices
+        x_mean = np.mean(verts[:, 0])
+        closest_cat = min(category_positions, key=lambda k: abs(category_positions[k] - x_mean))
+        scale = scaling_factors.get(closest_cat, 1) / max_scale
+        verts[:, 0] = (verts[:, 0] - x_mean) * scale + x_mean
+        artist.set_edgecolor("black")
+        artist.set_linewidth(0.8)
+        artist.set_alpha(0.8)
+
+    # === Labels ===
+    ax.set_xlabel("")
+    ax.set_ylabel("Fraction Read Support", fontsize=7)
+    ax.tick_params(axis='both', labelsize=7)
+    sns.despine(ax=ax, top=True, right=True)
+
+    # === Annotations ===
+
+  #  for cat, xpos in category_positions.items():
+ #       total = total_counts[cat]
+ #       plotted = shown_counts.get(cat, 0)
+ #       frac = (plotted / total * 100) if total > 0 else 0
+
+  #      label = f"{plotted} / {total}\n{frac:.1f}%"
+  #      ax.text(
+  #          xpos,
+  #          0.95,   # just above violin
+  #          label,
+  #          ha="center", va="bottom",
+  #          fontsize=6
+  #      )
+
+    plt.tight_layout()
+    plt.show()
+
+
+
+def plot_frs_sens(df_build, df_test, drug="AMI", figsize=(4, 2)):
+    fig, ax1 = plt.subplots(figsize=figsize)
+
+    # --- Line 1: varying Build FRS ---
+    ax1.plot(
+        df_build["Build_FRS"],
+        df_build["Sensitivity"],
+        label="Varying Build FRS",
+        marker="x",
+        markersize=4,
+        color="#990000",
+        alpha=0.5
+    )
+
+    # --- Line 2: varying Test FRS ---
+    ax1.plot(
+        df_test["Test_FRS"],
+        df_test["Sensitivity"],
+        label="Varying Test FRS",
+        marker="x",
+        markersize=4,
+        color="#990000"
+    )
+
+    # Axis labels
+    ax1.set_xlabel("minimum FRS", fontsize=8)
+    ax1.set_ylabel("Sensitivity (%)", fontsize=8, color="black")
+    ax1.tick_params(axis="both", labelsize=7)
+    ax1.set_ylim(75, 95)
+
+    # Remove spines + grid
+    ax1.spines["top"].set_visible(False)
+    ax1.spines["right"].set_visible(False)
+    ax1.grid(False)
+
+    # --- Secondary axis for resistant counts ---
+    ax2 = ax1.twinx()
+    ax2.scatter(
+        df_build["Build_FRS"],
+        df_build["catalogued_R"],
+        marker="_",  # diamond looks like a dash‐point
+        color="tab:gray",
+        s=12,
+        label="R counts"
+    )
+    ax2.set_ylabel("Resistant rows", fontsize=8, color="tab:gray")
+    ax2.tick_params(axis="y", labelcolor="tab:gray", labelsize=7)
+
+    # Legends: combine both axes
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+
+    ax2.spines["top"].set_visible(False)
+    ax2.spines['right'].set_color('gray')
+    ax2.tick_params(axis='y', colors='tab:gray')
+    ax2.grid(False)
+    ax2.set_ylim(5, 12)
+
+    plt.tight_layout()
+    plt.show()
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
+def _counts_cat_vs_cats_all(drug, expanded_catalogues):
+    """
+    Returns (only_cat, only_cats_all, shared) for a given drug,
+    using the merged table with PREDICTION_cat and PREDICTION_cats_all.
+    """
+    merged = expanded_catalogues[drug]['merged']
+
+    shared = merged[
+        (~merged.PREDICTION_cat.isna()) & (~merged.PREDICTION_cats_all.isna())
+    ].MUTATION.nunique()
+
+    only_cat = merged[
+        (~merged.PREDICTION_cat.isna()) & (merged.PREDICTION_cats_all.isna())
+    ].MUTATION.nunique()
+
+    only_cats_all = merged[
+        (merged.PREDICTION_cat.isna()) & (~merged.PREDICTION_cats_all.isna())
+    ].MUTATION.nunique()
+
+    return only_cat, only_cats_all, shared
+
+
+def plot_floating_bars_cat_vs_cats_all(expanded_catalogues, valid_drugs,
+                                       output_path=None, figsize=(6.69, 4),
+                                       legend=False):
+    """
+    Floating stacked bar plot for cat vs cats_all (no rules):
+      - Above line: CAT only
+      - On the line (centered at y=0): In both
+      - Below the line: CATS_ALL only
+    """
+    drugs = []
+    segs_all = []
+
+    for drug in valid_drugs:
+        cat_only, cats_all_only, both = _counts_cat_vs_cats_all(drug, expanded_catalogues)
+        segs_all.append({
+            "cat_only": cat_only,
+            "both": both,
+            "cats_all_only": cats_all_only
+        })
+        drugs.append(drug)
+
+    # colors (distinct, readable)
+    colors = {
+        "cat_only": "#db5363",
+        "both": "#aa74f0",
+        "cats_all_only": "#5485b6",
+    }
+    labels = {
+        "cat_only": "In catomatic-1",
+        "both": "In both",
+        "cats_all_only": "In catomatic-2",
+    }
+    legend_order = ["cat_only", "both", "cats_all_only"]
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    for i, drug in enumerate(drugs):
+        segs = segs_all[i]
+
+        # --- centre segment (on the line) ---
+        centre_h = segs["both"]
+        plot_h = centre_h
+        ax.bar(i, plot_h, bottom=-plot_h/2,
+               color=colors["both"], edgecolor="white", linewidth=1)
+        if centre_h > 0:
+            ax.text(i, 0, str(centre_h), ha="center", va="center", fontsize=7)
+
+        # --- above line (CAT only) ---
+        h = segs["cat_only"]
+        if h > 0:
+            plot_h = h
+            ax.bar(i, plot_h, bottom=centre_h/2,
+                   color=colors["cat_only"], edgecolor="white", linewidth=1)
+            ax.text(i, centre_h/2 + plot_h/2, str(h), ha="center", va="center", fontsize=7)
+
+        # --- below line (CATS_ALL only) ---
+        h = segs["cats_all_only"]
+        if h > 0:
+            plot_h = h
+            bottom = -centre_h/2
+            ax.bar(i, plot_h, bottom=bottom - plot_h,
+                   color=colors["cats_all_only"], edgecolor="white", linewidth=1)
+            ax.text(i, bottom - plot_h/2, str(h), ha="center", va="center", fontsize=7)
+
+    # cosmetics
+    ax.set_xticks(range(len(drugs)))
+    ax.set_xticklabels(drugs, fontsize=8)
+
+    # remove y-axis and spines
+    ax.yaxis.set_visible(False)
+    for side in ['left', 'top', 'right']:
+        ax.spines[side].set_visible(False)
+
+    ymin, ymax = ax.get_ylim()
+    pad = (ymax - ymin) * 0.01
+    ax.set_ylim(ymin - pad, ymax + pad)
+
+    if legend:
+        patches = [mpatches.Patch(color=colors[k], label=labels[k]) for k in legend_order]
+        ax.legend(handles=patches, fontsize=7, frameon=False, loc="lower center")
+
+    fig.tight_layout()
+    if output_path is not None:
+        fig.savefig(output_path)
+    plt.show()
+    plt.close(fig)
