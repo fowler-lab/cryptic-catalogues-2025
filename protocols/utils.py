@@ -756,6 +756,206 @@ def expand_catalogue_pair(cat1, cat2, drugs, model, cat_names, who_cat=None):
     return expanded_catalogues
 
 
+def expand_pair_coverages(cat1, cat2, mutations, phenotypes, drug, model, who_cat=None):
+
+    #note - dump synonymous mutations before calling
+
+    cat1_no_rules = cat1[~cat1["MUTATION"].str.contains(r"[*?=]", regex=True)]
+    cat1_rules_only = cat1[cat1["MUTATION"].str.contains(r"[*?=]", regex=True)]
+
+    if who_cat == 'WHOv1':
+
+        w_garc_path = 'catalogues/whov1/WHO-UCN-GTB-PCI-2021.7-eng_w_GARC.xlsx'
+        #flag mutations that had expert rules applied to WHOv1
+        if not os.path.exists(w_garc_path):
+            generate_garc_mutations('catalogues/whov1/WHO-UCN-GTB-PCI-2021.7-eng.xlsx', 'data/NC_000962.3.gbk').to_excel(w_garc_path)
+
+        who_original = pd.read_excel(w_garc_path)
+
+        filtered = who_original[~who_original['Additional grading criteria'].isna()]
+
+        prediction_map = {
+            'Assoc w R': 'R',
+            'Assoc w R - Interim': 'R',
+            'Uncertain significance': 'U',
+            'Not assoc w R': 'S',
+            'Not assoc w R - Interim': 'S'
+        }
+        filtered['PREDICTION'] = filtered['INITIAL CONFIDENCE GRADING'].map(prediction_map)
+        mapping = dict(zip(filtered['GARC_MUTATION'], filtered['PREDICTION']))
+        normalized_order = {
+            '&'.join(sorted(key.split('&'))): val
+            for key, val in mapping.items()
+        }
+        def normalize_order(mutation_str):
+            return '&'.join(sorted(mutation_str.split('&')))
+        
+        cat2_no_rules = cat2[(~cat2["MUTATION"].str.contains(r"[*?=]", regex=True))&(~cat2['MUTATION'].str.contains('indel'))]
+        cat2_no_rules['PREDICTION'] = cat2_no_rules.apply(
+            lambda row: normalized_order.get(normalize_order(row['MUTATION']), row['PREDICTION']),
+            axis=1)
+
+        cat2_rules_only = cat2[(cat2["MUTATION"].str.contains(r"[*?=]", regex=True))|(cat2['MUTATION'].isin(mapping.keys()))]   
+
+    elif who_cat == 'WHOv2':
+        print ('WHOv2 rule comparisons not yet supported, still need to implement')
+    else:
+        cat2_no_rules = cat2[~cat2["MUTATION"].str.contains(r"[*?=]", regex=True)]
+        cat2_rules_only = cat2[cat2["MUTATION"].str.contains(r"[*?=]", regex=True)]   
+
+    row = {
+        "GENBANK_REFERENCE": "NC00962.3",
+        "CATALOGUE_NAME": "-",
+        "CATALOGUE_VERSION": 0,
+        "CATALOGUE_GRAMMAR": "GARC1",
+        "PREDICTION_VALUES": model,
+        "DRUG": None,
+        "MUTATION": None,
+        "PREDICTION": None,
+        "SOURCE": {},
+        "EVIDENCE": {},
+        "OTHER": {},
+    }
+
+    expanded_coverage = {name: [] for name in ["cat1_no_rules", "cat1_rules", "cat2_no_rules", "cat2_rules", "none"]}
+    
+    # catalogues filtered by drug
+    cat1_drug = cat1[(cat1.DRUG == drug)]
+    cat2_drug = cat2[(cat2.DRUG == drug)]
+    # catalogues with rules removed, filtered for drug
+    cat1_no_rules_drug = cat1_no_rules[(cat1_no_rules.DRUG == drug)&(cat1_no_rules.PREDICTION.isin(['R', 'S', 'U']))]
+    cat2_no_rules_drug = cat2_no_rules[(cat2_no_rules.DRUG == drug)&(cat2_no_rules.PREDICTION.isin(['R', 'S', 'U']))]
+    # catalogue expert rules (not defaults) filtered for drug
+    cat1_rules_drug = cat1_rules_only[(cat1_rules_only.DRUG == drug)&(cat1_rules_only.PREDICTION.isin(['R', 'S', 'U']))]
+    cat2_rules_drug = cat2_rules_only[(cat2_rules_only.DRUG == drug)&(cat2_rules_only.PREDICTION.isin(['R', 'S', 'U']))]
+
+    # add placeholder rules to catalogues so avoid piezo error
+    for i in model:
+        row["PREDICTION"] = i
+        row["MUTATION"] = "placeholder@A1A"
+        row["DRUG"] = drug
+        cat2_rules_drug = pd.concat(
+            [cat2_rules_drug, pd.DataFrame([row])], ignore_index=True
+        )
+        cat1_rules_drug = pd.concat(
+            [cat1_rules_drug, pd.DataFrame([row])], ignore_index=True
+        )
+        cat2_no_rules_drug = pd.concat(
+            [cat2_no_rules_drug, pd.DataFrame([row])], ignore_index=True
+        )
+        cat1_no_rules_drug = pd.concat(
+            [cat1_no_rules_drug, pd.DataFrame([row])], ignore_index=True
+        )
+
+    genes_cat_1 = set(cat1_drug["MUTATION"].apply(lambda x: x.split("@")[0]).tolist())
+    genes_cat_2 = set(cat2_drug["MUTATION"].apply(lambda x: x.split("@")[0]).tolist())
+
+    genes_source = genes_cat_1 #catomatic genes - as these are the ones that are tier 1 with at least 1 RAV
+
+    # add a default wildcard U rule to rule catalogues (as were previously dumped)
+    for gene in genes_source:
+        for mut in [f"{gene}@*?", f"{gene}@-*?"]:
+            row["PREDICTION"] = "U"
+            row["MUTATION"] = mut
+            row["DRUG"] = drug
+            cat1_rules_drug = pd.concat(
+                [cat1_rules_drug, pd.DataFrame([row])], ignore_index=True
+            )
+            cat1_no_rules_drug = pd.concat(
+                [cat1_no_rules_drug, pd.DataFrame([row])], ignore_index=True
+            )
+
+    for gene in genes_source:
+        for mut in [f"{gene}@*?", f"{gene}@-*?"]:
+            row["PREDICTION"] = "U"
+            row["MUTATION"] = mut
+            row["DRUG"] = drug
+            cat2_rules_drug = pd.concat(
+                [cat2_rules_drug, pd.DataFrame([row.copy()])], ignore_index=True
+            )
+            cat2_no_rules_drug = pd.concat(
+                [cat2_no_rules_drug, pd.DataFrame([row.copy()])], ignore_index=True)
+
+    # write out rule catalogues so piezo can read them in and scan the other non-rule catalogue
+    cat1_rules_drug["EVIDENCE"] = cat1_rules_drug["EVIDENCE"].apply(json.dumps)
+    cat1_rules_drug.to_csv(f"./catalogues/temp/cat1_rules_only.csv")
+    cat1_rules_piezo = piezo.ResistanceCatalogue(
+        f"./catalogues/temp/cat1_rules_only.csv"
+    )
+    cat2_rules_drug["EVIDENCE"] = cat2_rules_drug["EVIDENCE"].apply(json.dumps)
+    cat2_rules_drug.to_csv(f"./catalogues/temp/cat2_rules_only.csv")
+    cat2_rules_piezo = piezo.ResistanceCatalogue(
+        f"./catalogues/temp/cat2_rules_only.csv"
+    )
+
+    # write out non-rule catalogues so piezo can read them in and scan the other non-rule catalogue
+    cat1_no_rules_drug["EVIDENCE"] = cat1_no_rules_drug["EVIDENCE"].apply(json.dumps)
+    cat1_no_rules_drug.to_csv(f"./catalogues/temp/cat1_no_rules_only.csv")
+    cat1_no_rules_piezo = piezo.ResistanceCatalogue(
+        f"./catalogues/temp/cat1_no_rules_only.csv"
+    )
+    cat2_no_rules_drug["EVIDENCE"] = cat2_no_rules_drug["EVIDENCE"].apply(json.dumps)
+    cat2_no_rules_drug.to_csv(f"./catalogues/temp/cat2_no_rules_only.csv")
+    cat2_no_rules_piezo = piezo.ResistanceCatalogue(
+        f"./catalogues/temp/cat2_no_rules_only.csv"
+    )
+
+    phenotypes.set_index('UNIQUEID', inplace=True)
+    mutations.set_index('UNIQUEID', inplace=True)
+    all_data = phenotypes.join(mutations, how='inner')
+    all_data.reset_index(inplace=True)
+
+    catalogues = {
+        "cat1_no_rules": cat1_no_rules_piezo,
+        "cat1_rules": cat1_rules_piezo,
+        "cat2_no_rules": cat2_no_rules_piezo,
+        "cat2_rules": cat2_rules_piezo,
+    }
+
+    for id_ in all_data.UNIQUEID.unique():
+        df = all_data[all_data.UNIQUEID == id_]
+
+        made_prediction = False  # track if any catalogue gave R or S
+
+        for name, catalogue in catalogues.items():
+            mut_predictions = []
+
+            for var in df["MUTATION"]:
+                if pd.isna(var):
+                    predict = "S"
+                else:
+                    try:
+                        predict = catalogue.predict(var)
+                    except ValueError:
+                        predict = "U"
+
+                if isinstance(predict, dict):
+                    if drug in predict:
+                        mut_predictions.append(predict[drug])
+                else:
+                    mut_predictions.append(predict)
+
+            # Collapse to sample-level: R > U > S
+            if "R" in mut_predictions:
+                final_pred = "R"
+            elif "U" in mut_predictions:
+                final_pred = "U"
+            else:
+                final_pred = "S"
+
+            if final_pred in ("R", "S"):
+                expanded_coverage[name].append(id_)
+                made_prediction = True
+
+        # if no catalogue could make an R or S call, add to "none"
+        if not made_prediction:
+            expanded_coverage["none"].append(id_)
+
+    return expanded_coverage
+
+
+
+    
 def back2back_sens_spec(data, palette, savefig=None):
     fig, (ax1, ax2) = plt.subplots(
         ncols=2, sharey=True, figsize=(10, 7), gridspec_kw={"width_ratios": [1, 1]}

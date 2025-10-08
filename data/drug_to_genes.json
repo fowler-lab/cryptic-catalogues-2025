@@ -1,18 +1,34 @@
 {
-  "AMI": {
-    "genes": ["eis", "rrs"],
+  "RIF": {
+    "genes": ["rpoB"],
     "phylogenetic": []
+  },
+  "INH": {
+    "genes": ["katG", "inhA", "ahpC", "fabG1"],
+    "phylogenetic": []
+  },
+  "EMB": {
+    "genes": ["embA", "embB"],
+    "phylogenetic": []
+  },
+  "PZA": {
+    "genes": ["pncA"],
+    "phylogenetic": []
+  },
+  "LEV": {
+    "genes": ["gyrA", "gyrB"],
+    "phylogenetic": ["gyrA@S95T", "gyrA@E21Q", "gyrA@G668D", "gyrB@M291I"]
+  },
+  "MXF": {
+    "genes": ["gyrA", "gyrB"],
+    "phylogenetic": ["gyrA@S95T", "gyrA@E21Q", "gyrA@G668D", "gyrB@M291I"]
   },
   "BDQ": {
     "genes": ["Rv0678", "pepQ", "atpE"],
     "phylogenetic": []
   },
-  "CAP": {
-    "genes": ["rrs", "tlyA"],
-    "phylogenetic": []
-  },
-  "CIP": {
-    "genes": ["gyrA"],
+  "LZD": {
+    "genes": ["rplC"],
     "phylogenetic": []
   },
   "CFZ": {
@@ -23,44 +39,24 @@
     "genes": ["ddn", "dprE1"],
     "phylogenetic": []
   },
-  "EMB": {
-    "genes": ["embA", "embB"],
+  "AMI": {
+    "genes": ["eis", "rrs"],
+    "phylogenetic": []
+  },
+  "STM": {
+    "genes": ["gid", "rpsL", "rrs"],
     "phylogenetic": []
   },
   "ETH": {
     "genes": ["ethA", "fabG1", "inhA"],
     "phylogenetic": []
   },
-  "INH": {
-    "genes": ["katG", "inhA", "ahpC", "fabG1"],
-    "phylogenetic": []
-  },
   "KAN": {
     "genes": ["eis", "rrs"],
     "phylogenetic": []
   },
-  "LEV": {
-    "genes": ["gyrA", "gyrB"],
-    "phylogenetic": ["gyrA@S95T", "gyrA@E21Q", "gyrA@G668D", "gyrB@M291I"]
-  },
-  "LZD": {
-    "genes": ["rplC"],
-    "phylogenetic": []
-  },
-  "MXF": {
-    "genes": ["gyrA", "gyrB"],
-    "phylogenetic": ["gyrA@S95T", "gyrA@E21Q", "gyrA@G668D", "gyrB@M291I"]
-  },
-  "PZA": {
-    "genes": ["pncA"],
-    "phylogenetic": []
-  },
-  "RIF": {
-    "genes": ["rpoB"],
-    "phylogenetic": []
-  },
-  "STM": {
-    "genes": ["gid", "rpsL", "rrs"],
+  "CAP": {
+    "genes": ["rrs", "tlyA"],
     "phylogenetic": []
   }
 }
