@@ -6433,16 +6433,6 @@ NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,BDQ,atpE@*_indel,U,{},"{""defaul
 NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,BDQ,atpE@-*?,U,{},"{""default_rule"": ""True""}",{}
 NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,BDQ,atpE@*?,U,{},"{""default_rule"": ""True""}",{}
 NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,BDQ,atpE@del_0.0,U,{},"{""default_rule"": ""True""}",{}
-NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,CIP,gyrA@E21Q,S,{},"{""proportion"": 0.05263157894736842, ""confidence"": [0.017572418957625027, 0.1471605113779547], ""p_value"": 0.0024222513016488646, ""contingency"": [[2, 36], [0, 3]]}",{}
-NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,CIP,gyrA@*=,S,{},"{""default_rule"": ""True""}",{}
-NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,CIP,gyrA@A74S,R,{},"{""proportion"": 1.0, ""confidence"": [0.4250306090063464, 1.0], ""p_value"": 0.0625, ""contingency"": [[2, 0], [2, 39]]}",{}
-NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,CIP,gyrA@D94A,R,{},"{""proportion"": 1.0, ""confidence"": [0.4250306090063464, 1.0], ""p_value"": 0.0625, ""contingency"": [[2, 0], [2, 39]]}",{}
-NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,CIP,gyrA@R480C,U,{},"{""proportion"": 0.0, ""confidence"": [0.0, 0.7301340512159458], ""p_value"": 1.0, ""contingency"": [[0, 1], [2, 39]]}",{}
-NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,CIP,gyrA@-*_indel,U,{},"{""default_rule"": ""True""}",{}
-NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,CIP,gyrA@*_indel,U,{},"{""default_rule"": ""True""}",{}
-NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,CIP,gyrA@-*?,U,{},"{""default_rule"": ""True""}",{}
-NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,CIP,gyrA@*?,U,{},"{""default_rule"": ""True""}",{}
-NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,CIP,gyrA@del_0.0,U,{},"{""default_rule"": ""True""}",{}
 NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,LZD,rplC@V185I,S,{},"{""proportion"": 0.0, ""confidence"": [0.0, 0.16817922405261626], ""p_value"": 0.006516711702715842, ""contingency"": [[0, 19], [144, 14208]]}",{}
 NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,LZD,rplC@A31T,S,{},"{""proportion"": 0.0, ""confidence"": [0.0, 0.14865487460862087], ""p_value"": 0.0024842959446118593, ""contingency"": [[0, 22], [144, 14208]]}",{}
 NC00962.3,MTBC-CRyPTICv1.1.1-2025.8,1,GARC1,RUS,LZD,rplC@T115A,S,{},"{""proportion"": 0.0, ""confidence"": [1.1962983316807505e-17, 0.1379762046749802], ""p_value"": 0.00152648405845568, ""contingency"": [[0, 24], [144, 14208]]}",{}

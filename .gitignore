@@ -18,3 +18,5 @@
 /cache_dir
 /__pycache__
 main.ipynb
+note-to-self.txt
+*/__pycache__
