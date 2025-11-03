@@ -1370,6 +1370,8 @@ def plot_bar_charts(
         "BDQ", "MXF", "LEV", "DLM", "AMI", "KAN", "LZD",
     ]
 
+    #drug_order = ['PZA', 'ETH']
+
     # Colors (darker red, grey, blue)
     colors = {
         "who_only": mcolors.to_rgba("#3582B6", 1.0),  # blue
@@ -1384,7 +1386,7 @@ def plot_bar_charts(
         "both": "catomatic-1 & WHOv1",
     }
 
-    scale_down = {"PZA": 2, "ETH": 2}
+    scale_down = {}
 
     # Collect values
     drugs, data_rules, data_excl = [], [], []
@@ -1415,7 +1417,11 @@ def plot_bar_charts(
         drugs.append(drug)
 
     # --- Create figure with 2 subplots ---
-    fig, axes = plt.subplots(2, 1, figsize=figsize, sharex=True)
+    full_n_drugs = 15  # total drugs you ever plot, not just subset
+    bar_width = 0.445
+    fig_width = full_n_drugs * bar_width  # keeps scale consistent
+
+    fig, axes = plt.subplots(2, 1, figsize=(fig_width, 8), sharex=True)
 
     def plot_bars(ax, data, title):
         bottoms = [0] * len(drugs)
@@ -1439,7 +1445,8 @@ def plot_bar_charts(
         ax.set_ylim(0, 250)
         for spine in ["top", "right"]:
             ax.spines[spine].set_visible(False)
-        ax.set_xlim(-0.5, len(drugs) - 0.5)
+        ax.set_xlim(-0.5, full_n_drugs - 0.5)
+
         ax.tick_params(axis='y', labelsize=fontsize)
 
 
