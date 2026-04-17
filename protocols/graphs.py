@@ -314,7 +314,7 @@ def grid_search_plots(df):
         plt.close()
 
 
-def plot_frs_sens(df, figsize=(4.3, 2.2)):
+def plot_frs_sens(df, figsize=(3.1, 2)):
     """
     Plot sensitivity versus build FRS for different test FRS values.
 
@@ -325,7 +325,7 @@ def plot_frs_sens(df, figsize=(4.3, 2.2)):
     drug : str, optional
         Drug name used for labeling or selection (default is "AMI").
     figsize : tuple, optional
-        Figure size in inches (default is (4.3, 2.2)).
+        Figure size in inches (default is (s4.3, 2.2)).
     """
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -334,7 +334,7 @@ def plot_frs_sens(df, figsize=(4.3, 2.2)):
     test_vals = sorted(df["Test_FRS"].unique())
 
     # Generate alphas that fade from 1.0 → 0.5
-    alphas = np.linspace(1.0, 0.4, len(test_vals))
+    alphas = np.linspace(1.0, 0.35, len(test_vals))
 
     for test_val, alpha in zip(test_vals, alphas):
         group = df[df["Test_FRS"] == test_val].sort_values("Build_FRS")
@@ -353,15 +353,15 @@ def plot_frs_sens(df, figsize=(4.3, 2.2)):
         x_last = group["Build_FRS"].iloc[-1]
         y_last = group["Sensitivity"].iloc[-1]
         offset = (df["Build_FRS"].max() - df["Build_FRS"].min()) * 0.04  # 2% of x-range
-        ax.text(
-            x_last + offset,
-            y_last,
-            f"{test_val:.1f}",
-            fontsize=6,
-            va="center",
-            color="#990000",
-            alpha=alpha,
-        )
+        #ax.text(
+        #    x_last + offset,
+        #    y_last,
+         #   fontsize=6,
+         #   va="center",
+         #   color="#990000",
+        #    f"{test_val:.1f}",
+        #    alpha=alpha,
+        #)
 
     # Axis styling
     ax.set_xlabel("Build FRS", fontsize=8)
@@ -370,11 +370,71 @@ def plot_frs_sens(df, figsize=(4.3, 2.2)):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.grid(False)
-    plt.ylim(80, 89)
+    plt.ylim(86, 95)
 
     plt.tight_layout()
     plt.show()
 
+def plot_frs_spec(df, figsize=(3.1, 2)):
+    """
+    Plot specificity versus build FRS for different test FRS values.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing 'Build_FRS', 'Test_FRS', and 'Sensitivity' columns.
+    drug : str, optional
+        Drug name used for labeling or selection (default is "AMI").
+    figsize : tuple, optional
+        Figure size in inches (default is (4.3, 2.2)).
+    """
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Get all unique test FRS values, sorted for consistent plotting
+    test_vals = sorted(df["Test_FRS"].unique())
+
+    # Generate alphas that fade from 1.0 → 0.5
+    alphas = np.linspace(1.0, 0.35, len(test_vals))
+
+    for test_val, alpha in zip(test_vals, alphas):
+        group = df[df["Test_FRS"] == test_val].sort_values("Build_FRS")
+
+        # Plot the curve
+        ax.plot(
+            group["Build_FRS"],
+            group["Specificity"],
+            marker="o",
+            markersize=3,
+            color="#4682B4",
+            alpha=alpha,
+        )
+
+        # Annotate last point with Test_FRS value (rounded)
+        x_last = group["Build_FRS"].iloc[-1]
+        y_last = group["Specificity"].iloc[-1]
+        offset = (df["Build_FRS"].max() - df["Build_FRS"].min()) * 0.04  # 2% of x-range
+        #ax.text(
+        #    x_last + offset,
+        #    y_last,
+         #   fontsize=6,
+         #   va="center",
+         #   color="#990000",
+        #    f"{test_val:.1f}",
+        #    alpha=alpha,
+        #)
+
+    # Axis styling
+    ax.set_xlabel("Build FRS", fontsize=8)
+    ax.set_ylabel("Specificity (%)", fontsize=8)
+    ax.tick_params(axis="both", labelsize=7)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(False)
+    plt.ylim(86, 95)
+
+    plt.tight_layout()
+    plt.show()
 
 def plot_catalogue_bar_charts(perf_df):
     """
@@ -701,7 +761,7 @@ def split_FRS_essential_violins(data):
     max_scale = max(scaling_factors.values()) if scaling_factors else 1
 
     # === Plot ===
-    fig, ax = plt.subplots(figsize=(4.25, 2))
+    fig, ax = plt.subplots(figsize=(4.25, 1.8))
 
     sns.violinplot(
         x="Category3",
@@ -762,7 +822,6 @@ def frs_gene_violins(all_mutations):
         "gyrA",
         "gyrB",
         "rplC",
-        "dprE1",
         "atpE",
         "rpsL",
         "rrs",
@@ -1366,8 +1425,8 @@ def plot_bar_charts(
     """
 
     drug_order = [
-        "PZA", "ETH", "STM", "INH", "EMB", "RIF", "CFZ", "CAP",
-        "BDQ", "MXF", "LEV", "DLM", "AMI", "KAN", "LZD",
+        "PZA", "ETH", "STM", "INH", "RIF", "EMB", 'CAP', "CFZ",
+        "MXF", "LEV", "BDQ", 'KAN', "DLM", "AMI", "LZD",
     ]
 
     #drug_order = ['PZA', 'ETH']
@@ -1450,9 +1509,9 @@ def plot_bar_charts(
         ax.tick_params(axis='y', labelsize=fontsize)
 
 
-    plot_bars(axes[0], data_excl, "Rules removed")
+    plot_bars(axes[1], data_excl, "Rules removed")
 
-    plot_bars(axes[1], data_rules, "Including WHOv1 rules")
+    plot_bars(axes[0], data_rules, "Including WHOv1 rules")
 
     if legend:
         patches = [mpatches.Patch(color=colors[k], label=labels[k]) for k in colors]

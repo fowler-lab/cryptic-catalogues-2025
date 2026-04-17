@@ -291,12 +291,13 @@ def piezo_predict(
 
     # Calculate ternary performance metrics
     sensitivity = TP / (TP + FN) if (TP + FN) != 0 else 0
-    specificity = TN / (TN + FP)
+    specificity = TN / (TN + FP) if (TN + FP) != 0 else 0
+    ppv = TP / (TP + FP) if (TP + FP) != 0 else 0
     dpr = (len(labels) - predictions.count("U")) / len(labels)
 
     # Calculate binary performance metrics
-    sensitivity2 = TP / (TP + FN + UP)
-    specificity2 = (TN + UN) / (TN + UN + FP)
+    sensitivity2 = TP / (TP + FN + UP) if (TP + FN + UP) != 0 else 0
+    specificity2 = (TN + UN) / (TN + UN + FP) if (TN + UN + FP) != 0 else 0
 
     if Print:
         print("Catalogue coverage of isolates:", dpr)
@@ -309,13 +310,14 @@ def piezo_predict(
             dpr,
             sensitivity,
             specificity,
+            ppv,
             sensitivity2,
             specificity2,
             FN_id,
             FP_id,
         ]
     elif not return_predictions:
-        return [cm, dpr, sensitivity, specificity, sensitivity2, specificity2]
+        return [cm, dpr, sensitivity, specificity, ppv, sensitivity2, specificity2]
     elif return_predictions:
         return [ids, labels, predictions]
 
