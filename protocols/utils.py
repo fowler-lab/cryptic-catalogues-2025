@@ -55,36 +55,32 @@ def confusion_matrix(labels, predictions, classes):
     return cm
 
 
-def filter_multiple_phenos(group):
-    """
-    If a sample contains more than one phenotype,
-    keep the highest priority phenotype in order: R > S > U.
-    Prefer rows with MIC values if available.
+def filter_multiple_phenos(phenotypes):
+    if phenotypes.empty:
+        return phenotypes
 
-    Parameters:
-    group (pd.DataFrame): A dataframe containing sample data with phenotypes.
+    priority = {"R": 0, "S": 1, "U": 2}
 
-    Returns:
-    pd.DataFrame: A filtered dataframe prioritizing resistant phenotypes.
-    """
+    out = phenotypes.copy()
+    out["_prio"] = out["PHENOTYPE"].map(priority).fillna(99)
 
-    if len(group) == 1:
-        return group
+    key = ["UNIQUEID", "DRUG"]
 
-    # Define phenotype priority order
-    priority_order = {"R": 1, "S": 2, "U": 3}
+    # keep rows with the best phenotype within each UNIQUEID+DRUG
+    best_prio = out.groupby(key)["_prio"].transform("min")
+    out = out[out["_prio"].eq(best_prio)]
 
-    # Sort by phenotype priority (lower is better)
-    group = group.sort_values(by="PHENOTYPE", key=lambda x: x.map(priority_order))
+    # within that phenotype, prefer METHOD_MIC present
+    out["_has_mic"] = out["METHOD_MIC"].notna().astype(int)
+    out = out.sort_values(
+        by=key + ["_has_mic"],
+        ascending=[True, True, False],
+        kind="mergesort",
+    )
 
-    # Keep only rows of the highest priority phenotype
-    highest_priority = group.iloc[0]["PHENOTYPE"]
-    filtered_group = group[group["PHENOTYPE"] == highest_priority]
+    out = out.drop_duplicates(subset=key, keep="first")
 
-    # Check for rows with METHOD_MIC values
-    with_mic = filtered_group.dropna(subset=["METHOD_MIC"])
-
-    return with_mic.iloc[0:1] if not with_mic.empty else filtered_group.iloc[0:1]
+    return out.drop(columns=["_prio", "_has_mic"])
 
 
 def flatten_grid_results(grid):

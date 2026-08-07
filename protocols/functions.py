@@ -76,12 +76,7 @@ def prep_phenotypes(drug, pheno_path, samples_path, version, validation=False):
     phenotypes = phenotypes[phenotypes.QUALITY != "LOW"]
     phenotypes = phenotypes[phenotypes.PHENOTYPE.isin(["R", "S"])]
 
-    # handle duplicates (keep R if R, otherwise first)
-    phenotypes = (
-        phenotypes.groupby("UNIQUEID", group_keys=False)
-        .apply(utils.filter_multiple_phenos)
-        .reset_index(drop=True)
-    )
+    phenotypes = utils.filter_multiple_phenos(phenotypes)
 
     # filter relevant columns for catomatic and rename id column
     phenotypes = phenotypes[["UNIQUEID", "DRUG", "PHENOTYPE", "METHOD_MIC", "METHOD_3"]]
