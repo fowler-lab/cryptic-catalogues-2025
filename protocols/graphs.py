@@ -373,6 +373,7 @@ def plot_frs_sens(df, figsize=(3.1, 2)):
     plt.ylim(86, 95)
 
     plt.tight_layout()
+    plt.savefig('./figs/main/frs_sens.pdf')
     plt.show()
 
 def plot_frs_spec(df, figsize=(3.1, 2)):
@@ -432,8 +433,9 @@ def plot_frs_spec(df, figsize=(3.1, 2)):
     ax.spines["right"].set_visible(False)
     ax.grid(False)
     plt.ylim(86, 95)
-
+    
     plt.tight_layout()
+    plt.savefig('./figs/main/frs_spec.pdf')
     plt.show()
 
 def plot_catalogue_bar_charts(perf_df):
@@ -802,6 +804,7 @@ def split_FRS_essential_violins(data):
     sns.despine(ax=ax, top=True, right=True)
 
     plt.tight_layout()
+    plt.savefig('./figs/main/frs_essential_violinns.pdf')
     plt.show()
 
 
@@ -934,7 +937,7 @@ def frs_gene_violins(all_mutations):
         artist.set_alpha(0.8)
 
     # === STEP 6: Annotate ===
-    for gene, i in category_positions.items():
+    for gene, i in category_positions.items(): 
         total = total_counts.get(gene, 0)
         plotted = shown_counts.get(gene, 0)
         frac = (plotted / total * 100) if total > 0 else 0
@@ -947,6 +950,7 @@ def frs_gene_violins(all_mutations):
 
     plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
+    plt.savefig('./figs/main/frs_gene_violins.pdf')
     plt.show()
 
 
