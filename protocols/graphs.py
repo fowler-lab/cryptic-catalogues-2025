@@ -17,6 +17,9 @@ plt.rcParams["font.family"] = "Helvetica"
 plt.rcParams["font.size"] = 7
 plt.rcParams["figure.figsize"] = (6.69, 5.02)
 
+matplotlib.rcParams["svg.fonttype"] = "none" 
+
+
 colours = {
     "WHO1": ("#47d2f5", "#47d2f5", "#47d2f5"),
     "WHOv1": ("#3381B5", "#3381B5", "#3381B5"),
@@ -373,7 +376,7 @@ def plot_frs_sens(df, figsize=(3.1, 2)):
     plt.ylim(86, 95)
 
     plt.tight_layout()
-    plt.savefig('./figs/main/frs_sens.pdf')
+    plt.savefig('./figs/main/frs_sens.svg')
     plt.show()
 
 def plot_frs_spec(df, figsize=(3.1, 2)):
@@ -435,7 +438,7 @@ def plot_frs_spec(df, figsize=(3.1, 2)):
     plt.ylim(86, 95)
     
     plt.tight_layout()
-    plt.savefig('./figs/main/frs_spec.pdf')
+    plt.savefig('./figs/main/frs_spec.svg')
     plt.show()
 
 def plot_catalogue_bar_charts(perf_df):
@@ -804,7 +807,7 @@ def split_FRS_essential_violins(data):
     sns.despine(ax=ax, top=True, right=True)
 
     plt.tight_layout()
-    plt.savefig('./figs/main/frs_essential_violinns.pdf')
+    plt.savefig('./figs/main/frs_essential_violinns.svg')
     plt.show()
 
 
@@ -950,7 +953,7 @@ def frs_gene_violins(all_mutations):
 
     plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
-    plt.savefig('./figs/main/frs_gene_violins.pdf')
+    plt.savefig('./figs/main/frs_gene_violins.svg')
     plt.show()
 
 
